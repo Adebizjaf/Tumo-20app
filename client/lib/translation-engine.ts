@@ -299,25 +299,11 @@ interface SpeechCallbacks {
   onEnd?: () => void;
 }
 
-let activeRecognition: SpeechRecognition | null = null;
+type SpeechRecognitionInstance = any;
 
-type SpeechRecognition = typeof window extends { SpeechRecognition: infer T }
-  ? T extends abstract new (...args: never) => infer C
-    ? C
-    : never
-  : never;
+let activeRecognition: SpeechRecognitionInstance | null = null;
 
-type RecognitionConstructor =
-  | (typeof window extends { SpeechRecognition: infer T }
-      ? T extends abstract new (...args: never) => infer C
-        ? { new (): C }
-        : never
-      : never)
-  | (typeof window extends { webkitSpeechRecognition: infer T }
-      ? T extends abstract new (...args: never) => infer C
-        ? { new (): C }
-        : never
-      : never);
+type RecognitionConstructor = new () => SpeechRecognitionInstance;
 
 const getSpeechRecognitionConstructor = (): RecognitionConstructor | undefined => {
   if (typeof window === "undefined") {

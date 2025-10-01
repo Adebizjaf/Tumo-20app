@@ -335,22 +335,24 @@ export const startSpeechRecognition = (
   recognition.lang = languageToSpeechLocale(language) ?? "en-US";
 
   recognition.onstart = () => callbacks.onStart?.();
-  recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-    callbacks.onError?.(event.error ?? "Speech recognition error");
+  recognition.onerror = (event: any) => {
+    const errorMessage = typeof event?.error === "string" ? event.error : "Speech recognition error";
+    callbacks.onError?.(errorMessage);
   };
   recognition.onend = () => {
     callbacks.onEnd?.();
   };
-  recognition.onresult = (event: SpeechRecognitionEvent) => {
+  recognition.onresult = (event: any) => {
     let transcript = "";
     let isFinal = false;
-    for (let i = event.resultIndex; i < event.results.length; i += 1) {
-      const result = event.results[i];
-      transcript += result[0].transcript;
+    const results: any[] = Array.from(event.results ?? []);
+    results.forEach((result) => {
+      const alternative = result[0];
+      transcript += alternative?.transcript ?? "";
       if (result.isFinal) {
         isFinal = true;
       }
-    }
+    });
     callbacks.onResult?.(transcript.trim(), isFinal);
   };
 

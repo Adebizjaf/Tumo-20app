@@ -3,7 +3,7 @@ import { Outlet, NavLink } from "react-router-dom";
 import {
   Languages,
   MessageCircle,
-  Clock4,
+  Clock3,
   Settings,
   Sparkles,
   Waves,

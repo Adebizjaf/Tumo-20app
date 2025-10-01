@@ -32,7 +32,7 @@ const NAV_ITEMS = [
     to: "/history",
     label: "History",
     description: "Saved & offline",
-    icon: Clock4,
+    icon: Clock3,
   },
   {
     to: "/settings",

@@ -69,7 +69,7 @@ const LANGUAGE_PATTERNS: Array<{ language: string; pattern: RegExp; confidence: 
   { language: "es", pattern: /[ñáéíóúü¿¡]/i, confidence: 0.88 },
   { language: "fr", pattern: /[àâçéèêëîïôûùüÿœæ]/i, confidence: 0.86 },
   { language: "de", pattern: /[äöüß]/i, confidence: 0.8 },
-  { language: "yo", pattern: /[ẹọṣ��ÀÈÌÒÙáéíóụ́̀́̄]/i, confidence: 0.82 },
+  { language: "yo", pattern: /[ẹọṣńÀÈÌÒÙáéíóụ́̀́̄]/i, confidence: 0.82 },
   { language: "zh", pattern: /[\u4e00-\u9fff]/, confidence: 0.92 },
   { language: "ar", pattern: /[\u0600-\u06ff]/, confidence: 0.9 },
   { language: "pt", pattern: /[ãõâêôç]/i, confidence: 0.82 },
@@ -175,32 +175,23 @@ export const translateText = async (
   if (!text.trim()) {
     return { text: "", detectedLanguage: source, confidence: 0, provider: "" };
   }
-  const endpoint = sanitizeEndpoint(DEFAULT_TRANSLATION_ENDPOINT);
   const started = performance.now();
 
-  const attemptRemote = canAttemptRemote();
-
   try {
-    if (!attemptRemote) {
-      throw new Error("skip-remote-translate");
-    }
-
-    const body = {
-      q: text,
-      source: source === "auto" ? "auto" : source,
-      target,
-      format: "text",
-    };
-    const response = await fetchWithTimeout(`${endpoint}/translate`, {
+    const response = await fetchWithTimeout(CLIENT_TRANSLATE_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        text,
+        source,
+        target,
+        stream: request.stream ?? false,
+      }),
     });
 
     if (response?.ok) {
-      remoteCooldownUntil = 0;
       const payload = await response.json();
       const translatedText = payload.translatedText ?? payload.translation ?? "";
       const detectedLanguage = payload.detectedLanguage ?? payload.detected ?? source;
@@ -209,22 +200,19 @@ export const translateText = async (
         text: translatedText,
         detectedLanguage,
         confidence: payload.confidence ?? 0.9,
-        provider: payload.provider ?? "libretranslate",
+        provider: payload.provider ?? payload.providerName ?? "linguasphere-proxy",
         latencyMs: performance.now() - started,
       };
     }
-
-    throw new Error(response ? `Translation failed with status ${response.status}` : "Translation network error");
   } catch (error) {
-    if (error instanceof Error && error.message !== "skip-remote-translate") {
-      markRemoteFailure();
-    }
-    const fallback = fallbackTranslate(text, source, target);
-    return {
-      ...fallback,
-      latencyMs: performance.now() - started,
-    };
+    console.warn("Remote translation failed", error);
   }
+
+  const fallback = fallbackTranslate(text, source, target);
+  return {
+    ...fallback,
+    latencyMs: performance.now() - started,
+  };
 };
 
 const languageToSpeechLocale = (language: string) => {

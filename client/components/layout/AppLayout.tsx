@@ -51,8 +51,8 @@ const AppBrand = () => (
       <span className="absolute inset-0 rounded-2xl bg-accent/25 opacity-0 blur-lg transition-opacity duration-300 group-hover:opacity-100" />
     </span>
     <div className="flex flex-col">
-      <span className="font-display text-lg font-semibold tracking-tight">LinguaSphere</span>
-      <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Live translator</span>
+      <span className="font-display text-lg font-semibold tracking-tight">Tumọ</span>
+      <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Multilingual AI</span>
     </div>
   </NavLink>
 );
@@ -150,7 +150,7 @@ const AppLayout = ({ children }: PropsWithChildren) => (
       </main>
       <footer className="border-t border-border/60 bg-background/90 py-6">
         <div className="container flex flex-col gap-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-          <p>© {new Date().getFullYear()} LinguaSphere Labs. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Tumọ Labs. All rights reserved.</p>
           <PromoPills />
         </div>
       </footer>

@@ -379,7 +379,9 @@ export const stopSpeechRecognition = () => {
 };
 
 export const extractTextFromImage = async (file: File, languageHint = "eng") => {
-  const { default: Tesseract } = await import("tesseract.js");
+  const { default: Tesseract } = await import(
+    /* @vite-ignore */ "tesseract.js"
+  );
   const { data } = await Tesseract.recognize(file, languageHint, {
     logger: () => {
       // swallow logs to avoid noisy console output

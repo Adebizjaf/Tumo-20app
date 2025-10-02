@@ -35,8 +35,10 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useTranslationWorkspace } from "@/features/translation/TranslationProvider";
+import { MAX_INPUT_CHARACTERS } from "@/features/translation/constants";
 
-const microcopy = ["Type, speak, or snap", "Latency <200ms", "35+ languages"];const linguisticInsights = [
+const microcopy = ["Type, speak, or snap", "Latency <200ms", "35+ languages"];
+const linguisticInsights = [
   { title: "Auto detect", description: "Smart detection of over 35 languages" },
   { title: "Context aware", description: "Understands idioms and slang" },
   { title: "Speech tuned", description: "Optimised for hands-free translation" },

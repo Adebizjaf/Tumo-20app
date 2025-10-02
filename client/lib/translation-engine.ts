@@ -90,7 +90,6 @@ const fetchWithTimeout = async (
     });
     return response;
   } catch (error) {
-    markRemoteFailure();
     const message =
       error instanceof Error ? error.message : typeof error === "string" ? error : "unknown";
     console.warn(`Translation fetch failed: ${message}`);

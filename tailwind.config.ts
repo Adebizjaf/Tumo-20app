@@ -18,8 +18,10 @@ export default {
         display: ["Plus Jakarta Sans", "Manrope", "system-ui", "sans-serif"],
       },
       backgroundImage: {
-        "hero-surface": "radial-gradient(circle at top left, rgba(124, 58, 237, 0.25), transparent 55%), radial-gradient(circle at bottom right, rgba(6, 182, 212, 0.25), transparent 60%)",
-        "accent-glow": "linear-gradient(135deg, rgba(124, 58, 237, 0.3) 0%, rgba(6, 182, 212, 0.3) 100%)",
+        "hero-surface":
+          "radial-gradient(circle at top left, rgba(124, 58, 237, 0.25), transparent 55%), radial-gradient(circle at bottom right, rgba(6, 182, 212, 0.25), transparent 60%)",
+        "accent-glow":
+          "linear-gradient(135deg, rgba(124, 58, 237, 0.3) 0%, rgba(6, 182, 212, 0.3) 100%)",
       },
       boxShadow: {
         brand: "0 20px 45px -20px rgba(79, 70, 229, 0.35)",

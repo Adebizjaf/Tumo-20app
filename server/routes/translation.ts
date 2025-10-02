@@ -32,9 +32,27 @@ const callRemote = async <Payload>(
   }
 };
 
-const formatErrorPayload = (status: number, message: string) => ({
+const parseBody = async <T = unknown>(response: globalThis.Response) => {
+  const contentType = response.headers.get("content-type") ?? "";
+  const raw = await response.text();
+  if (contentType.includes("application/json")) {
+    try {
+      return { json: JSON.parse(raw) as T, raw };
+    } catch (error) {
+      console.warn("Failed to parse JSON payload", error);
+    }
+  }
+  try {
+    return { json: JSON.parse(raw) as T, raw };
+  } catch {
+    return { json: undefined, raw };
+  }
+};
+
+const formatErrorPayload = (status: number, message: string, details?: string) => ({
   error: message,
   status,
+  details,
 });
 
 export const translationRouter = Router();
@@ -53,22 +71,17 @@ translationRouter.post("/detect", async (req, res) => {
       .json(formatErrorPayload(503, "Language detection service unavailable"));
   }
 
-  if (!response.ok) {
-    let body: unknown;
-    try {
-      body = await response.json();
-    } catch {
-      body = await response.text();
-    }
-    return res.status(response.status).json(
-      typeof body === "object" && body !== null
-        ? body
-        : formatErrorPayload(response.status, "Language detection failed"),
-    );
+  const { json, raw } = await parseBody(response);
+
+  if (!response.ok || !json) {
+    const payload =
+      typeof json === "object" && json !== null
+        ? json
+        : formatErrorPayload(response.status, "Language detection failed", raw?.slice(0, 200));
+    return res.status(response.status || 502).json(payload);
   }
 
-  const payload = await response.json();
-  return res.json(payload);
+  return res.json(json);
 });
 
 translationRouter.post("/translate", async (req, res) => {
@@ -101,21 +114,15 @@ translationRouter.post("/translate", async (req, res) => {
       .json(formatErrorPayload(503, "Translation service unavailable"));
   }
 
-  if (!response.ok) {
-    let body: unknown;
-    try {
-      body = await response.json();
-    } catch {
-      body = await response.text();
-    }
+  const { json, raw } = await parseBody(response);
 
-    return res.status(response.status).json(
-      typeof body === "object" && body !== null
-        ? body
-        : formatErrorPayload(response.status, "Translation failed"),
-    );
+  if (!response.ok || !json) {
+    const payload =
+      typeof json === "object" && json !== null
+        ? json
+        : formatErrorPayload(response.status, "Translation failed", raw?.slice(0, 200));
+    return res.status(response.status || 502).json(payload);
   }
 
-  const payload = await response.json();
-  return res.json(payload);
+  return res.json(json);
 });

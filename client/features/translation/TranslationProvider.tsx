@@ -36,9 +36,9 @@ import type {
   TranslationState,
 } from "./types";
 
-const HISTORY_STORAGE_KEY = "linguasphere.history.v1";
-const CONVERSATION_STORAGE_KEY = "linguasphere.conversation.v1";
-const LAST_SESSION_KEY = "linguasphere.session.v1";
+const HISTORY_STORAGE_KEY = "tumo.history.v1";
+const CONVERSATION_STORAGE_KEY = "tumo.conversation.v1";
+const LAST_SESSION_KEY = "tumo.session.v1";
 
 const loadHistory = (): TranslationRecord[] => {
   if (typeof window === "undefined") {
@@ -337,7 +337,7 @@ export const TranslationProvider = ({ children }: { children: ReactNode }) => {
     }
     if (navigator.share) {
       await navigator.share({
-        title: "LinguaSphere translation",
+        title: "Tumọ translation",
         text: state.outputText,
       });
       return;

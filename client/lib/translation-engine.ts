@@ -1,9 +1,9 @@
 import type { TranslationRequest, TranslationResult } from "@/features/translation/types";
 
-const DEFAULT_TRANSLATION_ENDPOINT =
-  import.meta.env.VITE_TRANSLATION_API_URL ?? "https://libretranslate.de";
 const TRANSLATION_TIMEOUT = 12_000;
-const REMOTE_COOLDOWN_MS = 60_000;
+const API_BASE = "/api/translation";
+const CLIENT_TRANSLATE_ENDPOINT = `${API_BASE}/translate`;
+const CLIENT_DETECT_ENDPOINT = `${API_BASE}/detect`;
 
 const OFFLINE_DICTIONARY: Record<string, Record<string, Record<string, string>>> = {
   en: {

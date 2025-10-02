@@ -69,7 +69,7 @@ const LANGUAGE_PATTERNS: Array<{ language: string; pattern: RegExp; confidence: 
   { language: "es", pattern: /[ñáéíóúü¿¡]/i, confidence: 0.88 },
   { language: "fr", pattern: /[àâçéèêëîïôûùüÿœæ]/i, confidence: 0.86 },
   { language: "de", pattern: /[äöüß]/i, confidence: 0.8 },
-  { language: "yo", pattern: /[ẹọṣńÀÈÌÒÙáéíóụ́̀́̄]/i, confidence: 0.82 },
+  { language: "yo", pattern: /[ẹọṣ��ÀÈÌÒÙáéíóụ́̀́̄]/i, confidence: 0.82 },
   { language: "zh", pattern: /[\u4e00-\u9fff]/, confidence: 0.92 },
   { language: "ar", pattern: /[\u0600-\u06ff]/, confidence: 0.9 },
   { language: "pt", pattern: /[ãõâêôç]/i, confidence: 0.82 },
@@ -140,39 +140,28 @@ export const detectLanguage = async (
     return { language: "", confidence: 0 };
   }
 
-  const attemptRemote = canAttemptRemote();
-
   try {
-    if (!attemptRemote) {
-      throw new Error("skip-remote-detect");
-    }
-
-    const response = await fetchWithTimeout(
-      `${sanitizeEndpoint(DEFAULT_TRANSLATION_ENDPOINT)}/detect`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ q: text }),
+    const response = await fetchWithTimeout(CLIENT_DETECT_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({ text }),
+    });
 
     if (response?.ok) {
-      remoteCooldownUntil = 0;
       const data: Array<{ language: string; confidence: number }> = await response.json();
       if (Array.isArray(data) && data.length > 0) {
         return { language: data[0].language, confidence: data[0].confidence };
       }
     }
   } catch (error) {
-    if (error instanceof Error && error.message !== "skip-remote-detect") {
-      markRemoteFailure();
-    }
-    for (const pattern of LANGUAGE_PATTERNS) {
-      if (pattern.pattern.test(text)) {
-        return { language: pattern.language, confidence: pattern.confidence };
-      }
+    console.warn("Language detection failed", error);
+  }
+
+  for (const pattern of LANGUAGE_PATTERNS) {
+    if (pattern.pattern.test(text)) {
+      return { language: pattern.language, confidence: pattern.confidence };
     }
   }
 

@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 import { useTranslationWorkspace } from "@/features/translation/TranslationProvider";
 import { MAX_INPUT_CHARACTERS } from "@/features/translation/constants";
 
-const microcopy = ["Type, speak, or snap", "Latency <200ms", "35+ languages"];
+const microcopy = ["Type, speak, or snap", "Latency <200ms", "Focus on African languages"];
 const linguisticInsights = [
   { title: "Auto detect", description: "Smart detection of over 35 languages" },
   { title: "Context aware", description: "Understands idioms and slang" },
@@ -76,13 +76,13 @@ const Index = () => {
               <div className="space-y-4">
                 <div className="flex items-center gap-3 text-xs uppercase tracking-[0.4em] text-muted-foreground">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  LinguaSphere Engine
+                  Tumọ Engine
                 </div>
                 <h1 className="font-display text-4xl font-semibold leading-[1.1] tracking-tight text-foreground sm:text-5xl">
                   Translate anything instantly, anywhere.
                 </h1>
                 <p className="max-w-2xl text-base text-muted-foreground">
-                  Speak, type, or snap a photo and LinguaSphere streams live translations with smart language detection, natural voice playback, and offline resilience when you need it most.
+                  Speak, type, or snap a photo and Tumọ streams live translations with smart language detection, natural voice playback, and offline resilience when you need it most.
                 </p>
                 <div className="flex flex-wrap items-center gap-3">
                   {microcopy.map((line) => (

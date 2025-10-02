@@ -11,7 +11,7 @@ const remoteEndpoint = sanitizeEndpoint(TRANSLATION_API_URL);
 const callRemote = async <Payload>(
   path: string,
   payload: Payload,
-): Promise<Response | undefined> => {
+): Promise<globalThis.Response | undefined> => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TRANSLATION_TIMEOUT_MS);
   try {

@@ -19,6 +19,7 @@ export function createServer() {
   });
 
   app.get("/api/demo", handleDemo);
+  app.use("/api/translation", translationRouter);
 
   return app;
 }

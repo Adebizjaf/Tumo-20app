@@ -77,22 +77,6 @@ const LANGUAGE_PATTERNS: Array<{ language: string; pattern: RegExp; confidence: 
   { language: "hi", pattern: /[\u0900-\u097f]/, confidence: 0.9 },
 ];
 
-const sanitizeEndpoint = (endpoint: string) => endpoint.replace(/\/$/, "");
-
-let remoteCooldownUntil = 0;
-
-const markRemoteFailure = () => {
-  remoteCooldownUntil = Date.now() + REMOTE_COOLDOWN_MS;
-};
-
-const canAttemptRemote = () => {
-  const online = typeof navigator === "undefined" ? true : navigator.onLine;
-  if (!online) {
-    return false;
-  }
-  return Date.now() >= remoteCooldownUntil;
-};
-
 const fetchWithTimeout = async (
   input: RequestInfo | URL,
   init?: RequestInit,

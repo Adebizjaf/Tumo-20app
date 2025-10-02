@@ -74,11 +74,12 @@ translationRouter.post("/detect", async (req, res) => {
   const { json, raw } = await parseBody(response);
 
   if (!response.ok || !json) {
+    const status = response.ok ? 502 : response.status || 502;
     const payload =
       typeof json === "object" && json !== null
         ? json
-        : formatErrorPayload(response.status, "Language detection failed", raw?.slice(0, 200));
-    return res.status(response.status || 502).json(payload);
+        : formatErrorPayload(status, "Language detection failed", raw.slice(0, 200));
+    return res.status(status).json(payload);
   }
 
   return res.json(json);
@@ -117,11 +118,12 @@ translationRouter.post("/translate", async (req, res) => {
   const { json, raw } = await parseBody(response);
 
   if (!response.ok || !json) {
+    const status = response.ok ? 502 : response.status || 502;
     const payload =
       typeof json === "object" && json !== null
         ? json
-        : formatErrorPayload(response.status, "Translation failed", raw?.slice(0, 200));
-    return res.status(response.status || 502).json(payload);
+        : formatErrorPayload(status, "Translation failed", raw.slice(0, 200));
+    return res.status(status).json(payload);
   }
 
   return res.json(json);

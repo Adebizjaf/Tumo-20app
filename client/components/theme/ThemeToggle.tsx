@@ -4,7 +4,7 @@ import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const STORAGE_KEY = "linguasphere-theme";
+const STORAGE_KEY = "tumo-theme";
 
 const getInitialDarkMode = () => {
   if (typeof window === "undefined") {

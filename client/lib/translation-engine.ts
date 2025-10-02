@@ -78,7 +78,10 @@ const LANGUAGE_PATTERNS: Array<{ language: string; pattern: RegExp; confidence: 
 
 const sanitizeEndpoint = (endpoint: string) => endpoint.replace(/\/$/, "");
 
-const fetchWithTimeout = async (input: RequestInfo | URL, init?: RequestInit) => {
+const fetchWithTimeout = async (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response | undefined> => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TRANSLATION_TIMEOUT);
   try {
@@ -86,11 +89,12 @@ const fetchWithTimeout = async (input: RequestInfo | URL, init?: RequestInit) =>
       ...init,
       signal: controller.signal,
     });
-    clearTimeout(timeout);
     return response;
   } catch (error) {
+    console.warn("Translation fetch failed", error);
+    return undefined;
+  } finally {
     clearTimeout(timeout);
-    throw error;
   }
 };
 
@@ -147,12 +151,11 @@ export const detectLanguage = async (
       },
     );
 
-    if (!response.ok) {
-      throw new Error("Failed to detect language");
-    }
-    const data: Array<{ language: string; confidence: number }> = await response.json();
-    if (Array.isArray(data) && data.length > 0) {
-      return { language: data[0].language, confidence: data[0].confidence };
+    if (response?.ok) {
+      const data: Array<{ language: string; confidence: number }> = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        return { language: data[0].language, confidence: data[0].confidence };
+      }
     }
   } catch (error) {
     for (const pattern of LANGUAGE_PATTERNS) {
@@ -190,21 +193,21 @@ export const translateText = async (
       body: JSON.stringify(body),
     });
 
-    if (!response.ok) {
-      throw new Error(`Translation failed with status ${response.status}`);
+    if (response?.ok) {
+      const payload = await response.json();
+      const translatedText = payload.translatedText ?? payload.translation ?? "";
+      const detectedLanguage = payload.detectedLanguage ?? payload.detected ?? source;
+
+      return {
+        text: translatedText,
+        detectedLanguage,
+        confidence: payload.confidence ?? 0.9,
+        provider: payload.provider ?? "libretranslate",
+        latencyMs: performance.now() - started,
+      };
     }
 
-    const payload = await response.json();
-    const translatedText = payload.translatedText ?? payload.translation ?? "";
-    const detectedLanguage = payload.detectedLanguage ?? payload.detected ?? source;
-
-    return {
-      text: translatedText,
-      detectedLanguage,
-      confidence: payload.confidence ?? 0.9,
-      provider: payload.provider ?? "libretranslate",
-      latencyMs: performance.now() - started,
-    };
+    throw new Error(response ? `Translation failed with status ${response.status}` : "Translation network error");
   } catch (error) {
     const fallback = fallbackTranslate(text, source, target);
     return {

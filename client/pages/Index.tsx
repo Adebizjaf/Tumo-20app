@@ -35,22 +35,27 @@ import { cn } from "@/lib/utils";
 import { useTranslationWorkspace } from "@/features/translation/TranslationProvider";
 import { MAX_INPUT_CHARACTERS } from "@/features/translation/constants";
 
-const microcopy = ["Type, speak, or snap", "Latency <200ms", "Focus on African languages"];
+const microcopy = [
+  "Type, speak, or snap",
+  "Latency <200ms",
+  "Focus on African languages",
+];
 const linguisticInsights = [
   { title: "Auto detect", description: "Smart detection of over 35 languages" },
   { title: "Context aware", description: "Understands idioms and slang" },
-  { title: "Speech tuned", description: "Optimised for hands-free translation" },
+  {
+    title: "Speech tuned",
+    description: "Optimised for hands-free translation",
+  },
 ];
 
 const Index = () => {
-  const {
-    state,
-    actions,
-    languages,
-  } = useTranslationWorkspace();
+  const { state, actions, languages } = useTranslationWorkspace();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [showLatency, setShowLatency] = useState(true);
-  const speechToggleLabel = state.speech.isListening ? "Listening" : "Voice input";
+  const speechToggleLabel = state.speech.isListening
+    ? "Listening"
+    : "Voice input";
   const realtimeStatus = useMemo(() => {
     if (state.isTranslating) {
       return "Translating";
@@ -82,7 +87,9 @@ const Index = () => {
                   Translate anything instantly, anywhere.
                 </h1>
                 <p className="max-w-2xl text-base text-muted-foreground">
-                  Speak, type, or snap a photo and Tumọ streams live translations with smart language detection, natural voice playback, and offline resilience when you need it most.
+                  Speak, type, or snap a photo and Tumọ streams live
+                  translations with smart language detection, natural voice
+                  playback, and offline resilience when you need it most.
                 </p>
                 <div className="flex flex-wrap items-center gap-3">
                   {microcopy.map((line) => (
@@ -106,13 +113,23 @@ const Index = () => {
                 <div className="h-2 w-full rounded-full bg-border/60">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-primary to-secondary transition-all duration-500"
-                    style={{ width: state.isTranslating ? "82%" : showLatency && state.realtimeLatency ? `${Math.min(Math.max(state.realtimeLatency / 10, 20), 100)}%` : "22%" }}
+                    style={{
+                      width: state.isTranslating
+                        ? "82%"
+                        : showLatency && state.realtimeLatency
+                          ? `${Math.min(Math.max(state.realtimeLatency / 10, 20), 100)}%`
+                          : "22%",
+                    }}
                   />
                 </div>
                 <div className="w-full space-y-3 rounded-2xl bg-background/80 p-4 text-left text-xs text-muted-foreground backdrop-blur">
                   <div className="flex items-center justify-between">
                     <span>Latency</span>
-                    <span>{state.realtimeLatency ? `${Math.round(state.realtimeLatency)}ms` : "—"}</span>
+                    <span>
+                      {state.realtimeLatency
+                        ? `${Math.round(state.realtimeLatency)}ms`
+                        : "—"}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Offline cache</span>
@@ -124,7 +141,11 @@ const Index = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Switch id="latency-toggle" checked={showLatency} onCheckedChange={setShowLatency} />
+                  <Switch
+                    id="latency-toggle"
+                    checked={showLatency}
+                    onCheckedChange={setShowLatency}
+                  />
                   <Label htmlFor="latency-toggle">Auto refresh stats</Label>
                 </div>
               </div>
@@ -135,7 +156,10 @@ const Index = () => {
             <div className="flex flex-col gap-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-wrap items-center gap-3">
-                  <Select value={state.sourceLanguage} onValueChange={actions.setSourceLanguage}>
+                  <Select
+                    value={state.sourceLanguage}
+                    onValueChange={actions.setSourceLanguage}
+                  >
                     <SelectTrigger className="w-48 rounded-2xl border-border/60 bg-background/80 text-base font-medium">
                       <SelectValue placeholder="Source" />
                     </SelectTrigger>
@@ -144,7 +168,9 @@ const Index = () => {
                         <SelectItem key={language.code} value={language.code}>
                           <div className="flex flex-col">
                             <span className="font-medium">{language.name}</span>
-                            <span className="text-xs text-muted-foreground">{language.nativeName}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {language.nativeName}
+                            </span>
                           </div>
                         </SelectItem>
                       ))}
@@ -159,7 +185,10 @@ const Index = () => {
                     <Repeat className="h-4 w-4" />
                     Swap
                   </Button>
-                  <Select value={state.targetLanguage} onValueChange={actions.setTargetLanguage}>
+                  <Select
+                    value={state.targetLanguage}
+                    onValueChange={actions.setTargetLanguage}
+                  >
                     <SelectTrigger className="w-48 rounded-2xl border-border/60 bg-background/80 text-base font-medium">
                       <SelectValue placeholder="Target" />
                     </SelectTrigger>
@@ -169,8 +198,12 @@ const Index = () => {
                         .map((language) => (
                           <SelectItem key={language.code} value={language.code}>
                             <div className="flex flex-col">
-                              <span className="font-medium">{language.name}</span>
-                              <span className="text-xs text-muted-foreground">{language.nativeName}</span>
+                              <span className="font-medium">
+                                {language.name}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {language.nativeName}
+                              </span>
                             </div>
                           </SelectItem>
                         ))}
@@ -179,16 +212,27 @@ const Index = () => {
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   {state.detectedLanguage ? (
-                    <Badge variant="outline" className="rounded-full border-primary/40 text-primary">
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-primary/40 text-primary"
+                    >
                       Auto detected · {state.detectedLanguage.toUpperCase()} ·
-                      {state.detectionConfidence ? ` ${(state.detectionConfidence * 100).toFixed(0)}%` : ""}
+                      {state.detectionConfidence
+                        ? ` ${(state.detectionConfidence * 100).toFixed(0)}%`
+                        : ""}
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="rounded-full border-border/60">
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-border/60"
+                    >
                       Detection active
                     </Badge>
                   )}
-                  <Badge variant="outline" className="rounded-full border-border/60">
+                  <Badge
+                    variant="outline"
+                    className="rounded-full border-border/60"
+                  >
                     Mode · {state.mode.toUpperCase()}
                   </Badge>
                 </div>
@@ -198,11 +242,15 @@ const Index = () => {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between text-xs uppercase tracking-[0.4em] text-muted-foreground">
                     <span>Source input</span>
-                    <span>{state.inputText.length}/{MAX_INPUT_CHARACTERS}</span>
+                    <span>
+                      {state.inputText.length}/{MAX_INPUT_CHARACTERS}
+                    </span>
                   </div>
                   <Textarea
                     value={state.inputText}
-                    onChange={(event) => actions.updateInputText(event.target.value)}
+                    onChange={(event) =>
+                      actions.updateInputText(event.target.value)
+                    }
                     placeholder="Start typing or dictate your message..."
                     className="min-h-[180px] rounded-3xl border-border/60 bg-background/80 p-6 text-base leading-relaxed shadow-inner focus-visible:ring-primary"
                   />
@@ -211,14 +259,21 @@ const Index = () => {
                       <Toggle
                         pressed={activeVoice}
                         onPressedChange={() =>
-                          activeVoice ? actions.stopListening() : actions.startListening()
+                          activeVoice
+                            ? actions.stopListening()
+                            : actions.startListening()
                         }
                         className={cn(
                           "h-10 rounded-full border border-border/60 px-4",
-                          activeVoice && "border-secondary/40 bg-secondary/20 text-secondary",
+                          activeVoice &&
+                            "border-secondary/40 bg-secondary/20 text-secondary",
                         )}
                       >
-                        {activeVoice ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
+                        {activeVoice ? (
+                          <Mic className="h-4 w-4" />
+                        ) : (
+                          <MicOff className="h-4 w-4" />
+                        )}
                         {speechToggleLabel}
                       </Toggle>
                       <Button
@@ -273,31 +328,51 @@ const Index = () => {
                       <Toggle
                         pressed={state.speech.isSynthesizing}
                         onPressedChange={() =>
-                          state.speech.isSynthesizing ? actions.stopSpeaking() : actions.speakOutput()
+                          state.speech.isSynthesizing
+                            ? actions.stopSpeaking()
+                            : actions.speakOutput()
                         }
                         className={cn(
                           "h-10 rounded-full border border-border/60 px-4",
-                          state.speech.isSynthesizing && "border-primary/40 bg-primary/20 text-primary",
+                          state.speech.isSynthesizing &&
+                            "border-primary/40 bg-primary/20 text-primary",
                         )}
                       >
-                        {state.speech.isSynthesizing ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                        {state.speech.isSynthesizing ? (
+                          <Volume2 className="h-4 w-4" />
+                        ) : (
+                          <VolumeX className="h-4 w-4" />
+                        )}
                         TTS
                       </Toggle>
-                      <Badge variant="outline" className="rounded-full border-border/60">
-                        {state.realtimeLatency ? `${Math.round(state.realtimeLatency)}ms` : ""}
+                      <Badge
+                        variant="outline"
+                        className="rounded-full border-border/60"
+                      >
+                        {state.realtimeLatency
+                          ? `${Math.round(state.realtimeLatency)}ms`
+                          : ""}
                       </Badge>
                     </div>
                   </div>
                   <GlassCard className="min-h-[180px] p-6">
                     <ScrollArea className="max-h-[220px]">
                       <p className="whitespace-pre-wrap text-base leading-relaxed text-foreground">
-                        {state.outputText || "Your translation will appear here with rich context"}
+                        {state.outputText ||
+                          "Your translation will appear here with rich context"}
                       </p>
                     </ScrollArea>
                   </GlassCard>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <span>Provider · {state.realtimeLatency ? "Realtime" : "Hybrid"}</span>
-                    <span>Confidence · {state.detectionConfidence ? `${(state.detectionConfidence * 100).toFixed(0)}%` : "Adaptive"}</span>
+                    <span>
+                      Provider · {state.realtimeLatency ? "Realtime" : "Hybrid"}
+                    </span>
+                    <span>
+                      Confidence ·{" "}
+                      {state.detectionConfidence
+                        ? `${(state.detectionConfidence * 100).toFixed(0)}%`
+                        : "Adaptive"}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -308,13 +383,20 @@ const Index = () => {
         <div className="space-y-6">
           <GlassCard className="p-6">
             <div className="flex items-center justify-between">
-              <h2 className="font-display text-xl font-semibold">Translation history</h2>
-              <Button variant="ghost" className="gap-2 rounded-full px-4" disabled>
+              <h2 className="font-display text-xl font-semibold">
+                Translation history
+              </h2>
+              <Button
+                variant="ghost"
+                className="gap-2 rounded-full px-4"
+                disabled
+              >
                 <Download className="h-4 w-4" /> Export
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              Access saved translations, even offline. Pin your favourites for quick playback.
+              Access saved translations, even offline. Pin your favourites for
+              quick playback.
             </p>
             <ScrollArea className="mt-4 max-h-[320px] pr-2">
               <div className="space-y-3">
@@ -332,19 +414,33 @@ const Index = () => {
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                          {item.sourceLanguage.toUpperCase()} → {item.targetLanguage.toUpperCase()}
+                          {item.sourceLanguage.toUpperCase()} →{" "}
+                          {item.targetLanguage.toUpperCase()}
                         </span>
                         <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70">
-                          {new Date(item.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {new Date(item.createdAt).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </span>
                       </div>
                       <p className="mt-2 text-sm font-medium text-foreground line-clamp-2">
                         {item.text}
                       </p>
                       <div className="mt-3 flex items-center gap-3 text-[11px] text-muted-foreground/80">
-                        <span>Confidence {(item.confidence ?? 0.85 * 100).toFixed(0)}%</span>
-                        <span>Offline {item.offlineAvailable ? "cached" : "—"}</span>
-                        <span>Latency {item.latencyMs ? `${Math.round(item.latencyMs)}ms` : "—"}</span>
+                        <span>
+                          Confidence{" "}
+                          {(item.confidence ?? 0.85 * 100).toFixed(0)}%
+                        </span>
+                        <span>
+                          Offline {item.offlineAvailable ? "cached" : "—"}
+                        </span>
+                        <span>
+                          Latency{" "}
+                          {item.latencyMs
+                            ? `${Math.round(item.latencyMs)}ms`
+                            : "—"}
+                        </span>
                       </div>
                     </button>
                   ))
@@ -354,46 +450,93 @@ const Index = () => {
           </GlassCard>
 
           <GlassCard className="p-6">
-            <h2 className="font-display text-xl font-semibold">Conversational mode</h2>
+            <h2 className="font-display text-xl font-semibold">
+              Conversational mode
+            </h2>
             <p className="text-sm text-muted-foreground">
-              Switch to dual-channel translation with diarised transcripts and live captions.
+              Switch to dual-channel translation with diarised transcripts and
+              live captions.
             </p>
             <Tabs defaultValue="overview" className="mt-4">
               <TabsList className="rounded-full bg-muted/40 p-1">
-                <TabsTrigger value="overview" className="rounded-full px-4 text-xs">Overview</TabsTrigger>
-                <TabsTrigger value="latency" className="rounded-full px-4 text-xs">Latency</TabsTrigger>
-                <TabsTrigger value="devices" className="rounded-full px-4 text-xs">Devices</TabsTrigger>
+                <TabsTrigger
+                  value="overview"
+                  className="rounded-full px-4 text-xs"
+                >
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger
+                  value="latency"
+                  className="rounded-full px-4 text-xs"
+                >
+                  Latency
+                </TabsTrigger>
+                <TabsTrigger
+                  value="devices"
+                  className="rounded-full px-4 text-xs"
+                >
+                  Devices
+                </TabsTrigger>
               </TabsList>
-              <TabsContent value="overview" className="mt-4 space-y-3 text-sm text-muted-foreground">
-                <p>Split-screen dialogue with live captions over Bluetooth headsets.</p>
+              <TabsContent
+                value="overview"
+                className="mt-4 space-y-3 text-sm text-muted-foreground"
+              >
+                <p>
+                  Split-screen dialogue with live captions over Bluetooth
+                  headsets.
+                </p>
                 <p>Adaptive volumes and auto-turn-taking reduce crosstalk.</p>
               </TabsContent>
               <TabsContent value="latency" className="mt-4">
-                <Progress value={state.realtimeLatency ? Math.min(state.realtimeLatency / 10, 100) : 25} className="h-2 rounded-full" />
+                <Progress
+                  value={
+                    state.realtimeLatency
+                      ? Math.min(state.realtimeLatency / 10, 100)
+                      : 25
+                  }
+                  className="h-2 rounded-full"
+                />
                 <p className="mt-3 text-xs text-muted-foreground">
-                  We maintain sub-200ms latency for natural flow. Performance adapts to network and device throughput.
+                  We maintain sub-200ms latency for natural flow. Performance
+                  adapts to network and device throughput.
                 </p>
               </TabsContent>
-              <TabsContent value="devices" className="mt-4 space-y-3 text-sm text-muted-foreground">
+              <TabsContent
+                value="devices"
+                className="mt-4 space-y-3 text-sm text-muted-foreground"
+              >
                 <p>Seamless handoff between mobile, desktop, and wearables.</p>
-                <p>Real-time transcripts sync to the cloud when connectivity returns.</p>
+                <p>
+                  Real-time transcripts sync to the cloud when connectivity
+                  returns.
+                </p>
               </TabsContent>
             </Tabs>
           </GlassCard>
 
           <GlassCard className="p-6">
-            <h2 className="font-display text-xl font-semibold">Linguistic intelligence</h2>
+            <h2 className="font-display text-xl font-semibold">
+              Linguistic intelligence
+            </h2>
             <div className="mt-4 grid gap-4">
               {linguisticInsights.map((insight) => (
-                <div key={insight.title} className="flex items-start gap-4 rounded-2xl border border-border/60 bg-background/90 p-4">
+                <div
+                  key={insight.title}
+                  className="flex items-start gap-4 rounded-2xl border border-border/60 bg-background/90 p-4"
+                >
                   <Avatar className="h-10 w-10">
                     <AvatarFallback className="bg-primary/10 text-primary">
                       {insight.title.slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <h3 className="text-sm font-semibold text-foreground">{insight.title}</h3>
-                    <p className="text-xs text-muted-foreground">{insight.description}</p>
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {insight.title}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      {insight.description}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -407,22 +550,34 @@ const Index = () => {
           <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">
             Feature matrix
           </p>
-          <h2 className="font-display text-2xl font-semibold">Technical foundation</h2>
+          <h2 className="font-display text-2xl font-semibold">
+            Technical foundation
+          </h2>
           <p className="text-sm text-muted-foreground">
-            Built with resilient offline caches, adaptive network handling, and low-latency speech processing.
+            Built with resilient offline caches, adaptive network handling, and
+            low-latency speech processing.
           </p>
         </div>
         <div className="space-y-3 rounded-2xl border border-border/60 bg-card/80 p-4 text-sm">
           <h3 className="font-semibold text-foreground">State management</h3>
-          <p className="text-muted-foreground">Deterministic store managing translation modes and history with local persistence.</p>
+          <p className="text-muted-foreground">
+            Deterministic store managing translation modes and history with
+            local persistence.
+          </p>
         </div>
         <div className="space-y-3 rounded-2xl border border-border/60 bg-card/80 p-4 text-sm">
           <h3 className="font-semibold text-foreground">Network manager</h3>
-          <p className="text-muted-foreground">Adaptive requests with timeouts, offline fallbacks, and streaming readiness.</p>
+          <p className="text-muted-foreground">
+            Adaptive requests with timeouts, offline fallbacks, and streaming
+            readiness.
+          </p>
         </div>
         <div className="space-y-3 rounded-2xl border border-border/60 bg-card/80 p-4 text-sm">
           <h3 className="font-semibold text-foreground">Device intelligence</h3>
-          <p className="text-muted-foreground">Speech APIs leverage native capabilities with graceful degradation across browsers.</p>
+          <p className="text-muted-foreground">
+            Speech APIs leverage native capabilities with graceful degradation
+            across browsers.
+          </p>
         </div>
       </section>
     </div>

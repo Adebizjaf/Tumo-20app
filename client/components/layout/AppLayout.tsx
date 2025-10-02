@@ -51,8 +51,12 @@ const AppBrand = () => (
       <span className="absolute inset-0 rounded-2xl bg-accent/25 opacity-0 blur-lg transition-opacity duration-300 group-hover:opacity-100" />
     </span>
     <div className="flex flex-col">
-      <span className="font-display text-lg font-semibold tracking-tight">Tumọ</span>
-      <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Multilingual AI</span>
+      <span className="font-display text-lg font-semibold tracking-tight">
+        Tumọ
+      </span>
+      <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+        Multilingual AI
+      </span>
     </div>
   </NavLink>
 );
@@ -134,7 +138,10 @@ const ActionBar = () => (
 
 const AppLayout = ({ children }: PropsWithChildren) => (
   <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
-    <div className="pointer-events-none fixed inset-0 bg-hero-surface" aria-hidden="true" />
+    <div
+      className="pointer-events-none fixed inset-0 bg-hero-surface"
+      aria-hidden="true"
+    />
     <div className="relative z-10 flex min-h-screen flex-col">
       <header className="sticky top-0 z-20 border-b border-border/60 bg-background/80 backdrop-blur-md">
         <div className="container flex h-20 items-center justify-between gap-4">

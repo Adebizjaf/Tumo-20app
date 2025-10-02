@@ -2,7 +2,9 @@ import { Router } from "express";
 
 const TRANSLATION_API_URL =
   process.env.TRANSLATION_API_URL ?? "https://libretranslate.de";
-const TRANSLATION_TIMEOUT_MS = Number(process.env.TRANSLATION_TIMEOUT_MS ?? 12_000);
+const TRANSLATION_TIMEOUT_MS = Number(
+  process.env.TRANSLATION_TIMEOUT_MS ?? 12_000,
+);
 
 const sanitizeEndpoint = (endpoint: string) => endpoint.replace(/\/$/, "");
 
@@ -49,7 +51,11 @@ const parseBody = async <T = unknown>(response: globalThis.Response) => {
   }
 };
 
-const formatErrorPayload = (status: number, message: string, details?: string) => ({
+const formatErrorPayload = (
+  status: number,
+  message: string,
+  details?: string,
+) => ({
   error: message,
   status,
   details,
@@ -60,7 +66,9 @@ export const translationRouter = Router();
 translationRouter.post("/detect", async (req, res) => {
   const { text } = req.body as { text?: string };
   if (typeof text !== "string" || !text.trim()) {
-    return res.status(400).json(formatErrorPayload(400, "Missing text for detection"));
+    return res
+      .status(400)
+      .json(formatErrorPayload(400, "Missing text for detection"));
   }
 
   const response = await callRemote("/detect", { q: text });
@@ -78,7 +86,11 @@ translationRouter.post("/detect", async (req, res) => {
     const payload =
       typeof json === "object" && json !== null
         ? json
-        : formatErrorPayload(status, "Language detection failed", raw.slice(0, 200));
+        : formatErrorPayload(
+            status,
+            "Language detection failed",
+            raw.slice(0, 200),
+          );
     return res.status(status).json(payload);
   }
 
@@ -86,19 +98,23 @@ translationRouter.post("/detect", async (req, res) => {
 });
 
 translationRouter.post("/translate", async (req, res) => {
-  const {
-    text,
-    source,
-    target,
-    stream,
-  } = req.body as { text?: string; source?: string; target?: string; stream?: boolean };
+  const { text, source, target, stream } = req.body as {
+    text?: string;
+    source?: string;
+    target?: string;
+    stream?: boolean;
+  };
 
   if (typeof text !== "string" || !text.trim()) {
-    return res.status(400).json(formatErrorPayload(400, "Missing text for translation"));
+    return res
+      .status(400)
+      .json(formatErrorPayload(400, "Missing text for translation"));
   }
 
   if (typeof target !== "string" || !target.trim()) {
-    return res.status(400).json(formatErrorPayload(400, "Missing target language"));
+    return res
+      .status(400)
+      .json(formatErrorPayload(400, "Missing target language"));
   }
 
   const response = await callRemote("/translate", {

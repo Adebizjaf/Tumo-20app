@@ -79,7 +79,10 @@ const loadSessionDraft = () => {
   try {
     const raw = window.localStorage.getItem(LAST_SESSION_KEY);
     if (!raw) return undefined;
-    return JSON.parse(raw) as Pick<TranslationState, "inputText" | "outputText"> & {
+    return JSON.parse(raw) as Pick<
+      TranslationState,
+      "inputText" | "outputText"
+    > & {
       sourceLanguage: string;
       targetLanguage: string;
     };
@@ -99,7 +102,10 @@ const persistConversation = (conversation: ConversationTurn[]) => {
   if (typeof window === "undefined") {
     return;
   }
-  window.localStorage.setItem(CONVERSATION_STORAGE_KEY, JSON.stringify(conversation));
+  window.localStorage.setItem(
+    CONVERSATION_STORAGE_KEY,
+    JSON.stringify(conversation),
+  );
 };
 
 const persistSessionDraft = (state: TranslationState) => {
@@ -162,12 +168,16 @@ const reducer = (state: TranslationState, action: Action): TranslationState => {
     case "SET_SPEECH":
       return { ...state, speech: { ...state.speech, ...action.payload } };
     case "ADD_HISTORY": {
-      const existing = state.history.filter((item) => item.id !== action.payload.id);
+      const existing = state.history.filter(
+        (item) => item.id !== action.payload.id,
+      );
       const history = [action.payload, ...existing].slice(0, 100);
       return {
         ...state,
         history,
-        favorites: history.filter((item) => item.favorite).map((item) => item.id),
+        favorites: history
+          .filter((item) => item.favorite)
+          .map((item) => item.id),
         offlineReady: history.length > 0,
       };
     }
@@ -176,33 +186,46 @@ const reducer = (state: TranslationState, action: Action): TranslationState => {
       return {
         ...state,
         history,
-        favorites: history.filter((item) => item.favorite).map((item) => item.id),
+        favorites: history
+          .filter((item) => item.favorite)
+          .map((item) => item.id),
         offlineReady: history.length > 0,
       };
     }
     case "REMOVE_HISTORY": {
-      const history = state.history.filter((item) => item.id !== action.payload);
+      const history = state.history.filter(
+        (item) => item.id !== action.payload,
+      );
       return {
         ...state,
         history,
-        favorites: history.filter((item) => item.favorite).map((item) => item.id),
+        favorites: history
+          .filter((item) => item.favorite)
+          .map((item) => item.id),
         offlineReady: history.length > 0,
       };
     }
     case "TOGGLE_FAVORITE": {
       const history = state.history.map((item) =>
-        item.id === action.payload ? { ...item, favorite: !item.favorite } : item,
+        item.id === action.payload
+          ? { ...item, favorite: !item.favorite }
+          : item,
       );
       return {
         ...state,
         history,
-        favorites: history.filter((item) => item.favorite).map((item) => item.id),
+        favorites: history
+          .filter((item) => item.favorite)
+          .map((item) => item.id),
       };
     }
     case "SET_MODE":
       return { ...state, mode: action.payload };
     case "APPEND_CONVERSATION":
-      return { ...state, conversation: [...state.conversation, action.payload] };
+      return {
+        ...state,
+        conversation: [...state.conversation, action.payload],
+      };
     case "SET_CONVERSATION":
       return { ...state, conversation: action.payload };
     case "CLEAR_CONVERSATION":
@@ -233,7 +256,12 @@ export const TranslationProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     persistSessionDraft(state);
-  }, [state.inputText, state.outputText, state.sourceLanguage, state.targetLanguage]);
+  }, [
+    state.inputText,
+    state.outputText,
+    state.sourceLanguage,
+    state.targetLanguage,
+  ]);
 
   const setSourceLanguage = useCallback((code: string) => {
     dispatch({ type: "PATCH", payload: { sourceLanguage: code } });
@@ -248,12 +276,20 @@ export const TranslationProvider = ({ children }: { children: ReactNode }) => {
       type: "PATCH",
       payload: {
         sourceLanguage: state.targetLanguage,
-        targetLanguage: state.sourceLanguage === "auto" ? state.targetLanguage : state.sourceLanguage,
+        targetLanguage:
+          state.sourceLanguage === "auto"
+            ? state.targetLanguage
+            : state.sourceLanguage,
         inputText: state.outputText,
         outputText: state.inputText,
       },
     });
-  }, [state.inputText, state.outputText, state.sourceLanguage, state.targetLanguage]);
+  }, [
+    state.inputText,
+    state.outputText,
+    state.sourceLanguage,
+    state.targetLanguage,
+  ]);
 
   const updateInputText = useCallback((value: string) => {
     const trimmed = value.slice(0, MAX_INPUT_CHARACTERS);
@@ -263,7 +299,11 @@ export const TranslationProvider = ({ children }: { children: ReactNode }) => {
   const clearOutput = useCallback(() => {
     dispatch({
       type: "PATCH",
-      payload: { outputText: "", detectedLanguage: undefined, detectionConfidence: undefined },
+      payload: {
+        outputText: "",
+        detectedLanguage: undefined,
+        detectionConfidence: undefined,
+      },
     });
   }, []);
 
@@ -354,7 +394,10 @@ export const TranslationProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const realtimeKey = `${state.sourceLanguage}|${state.targetLanguage}|${text}`;
-      if (options?.immediate && lastRealtimeRequestRef.current === realtimeKey) {
+      if (
+        options?.immediate &&
+        lastRealtimeRequestRef.current === realtimeKey
+      ) {
         return undefined;
       }
 
@@ -413,7 +456,9 @@ export const TranslationProvider = ({ children }: { children: ReactNode }) => {
         toast({
           title: "Translation failed",
           description:
-            error instanceof Error ? error.message : "Please try again shortly.",
+            error instanceof Error
+              ? error.message
+              : "Please try again shortly.",
           variant: "destructive",
         });
         return undefined;
@@ -421,7 +466,15 @@ export const TranslationProvider = ({ children }: { children: ReactNode }) => {
         dispatch({ type: "PATCH", payload: { isTranslating: false } });
       }
     },
-    [clearOutput, state.inputText, state.mode, state.sourceLanguage, state.targetLanguage, state.detectionConfidence, toast],
+    [
+      clearOutput,
+      state.inputText,
+      state.mode,
+      state.sourceLanguage,
+      state.targetLanguage,
+      state.detectionConfidence,
+      toast,
+    ],
   );
 
   const speakOutput = useCallback(async () => {
@@ -436,7 +489,9 @@ export const TranslationProvider = ({ children }: { children: ReactNode }) => {
       toast({
         title: "Text-to-speech unavailable",
         description:
-          error instanceof Error ? error.message : "Try a different language for audio playback.",
+          error instanceof Error
+            ? error.message
+            : "Try a different language for audio playback.",
         variant: "destructive",
       });
     } finally {
@@ -508,34 +563,37 @@ export const TranslationProvider = ({ children }: { children: ReactNode }) => {
     dispatch({ type: "SET_SPEECH", payload: { isSynthesizing: false } });
   }, []);
 
-  const importFromImage = useCallback(async (file: File) => {
-    dispatch({ type: "PATCH", payload: { isTranslating: true } });
-    try {
-      const text = await extractTextFromImage(file);
-      if (!text) {
-        toast({
-          title: "No readable text",
-          description: "Try capturing the document in brighter lighting.",
+  const importFromImage = useCallback(
+    async (file: File) => {
+      dispatch({ type: "PATCH", payload: { isTranslating: true } });
+      try {
+        const text = await extractTextFromImage(file);
+        if (!text) {
+          toast({
+            title: "No readable text",
+            description: "Try capturing the document in brighter lighting.",
+          });
+          return;
+        }
+        dispatch({
+          type: "PATCH",
+          payload: { inputText: `${state.inputText}\n${text}`.trim() },
         });
-        return;
+      } catch (error) {
+        toast({
+          title: "Image recognition failed",
+          description:
+            error instanceof Error
+              ? error.message
+              : "We could not extract any text. Please retry with a sharper image.",
+          variant: "destructive",
+        });
+      } finally {
+        dispatch({ type: "PATCH", payload: { isTranslating: false } });
       }
-      dispatch({
-        type: "PATCH",
-        payload: { inputText: `${state.inputText}\n${text}`.trim() },
-      });
-    } catch (error) {
-      toast({
-        title: "Image recognition failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "We could not extract any text. Please retry with a sharper image.",
-        variant: "destructive",
-      });
-    } finally {
-      dispatch({ type: "PATCH", payload: { isTranslating: false } });
-    }
-  }, [state.inputText, toast]);
+    },
+    [state.inputText, toast],
+  );
 
   useEffect(() => {
     if (state.mode !== "text") {
@@ -553,7 +611,10 @@ export const TranslationProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!network.online) {
-      dispatch({ type: "PATCH", payload: { offlineReady: state.history.length > 0 } });
+      dispatch({
+        type: "PATCH",
+        payload: { offlineReady: state.history.length > 0 },
+      });
     }
   }, [network.online, state.history.length]);
 
@@ -621,7 +682,9 @@ export const TranslationProvider = ({ children }: { children: ReactNode }) => {
 export const useTranslationWorkspace = () => {
   const ctx = useContext(TranslationContext);
   if (!ctx) {
-    throw new Error("useTranslationWorkspace must be used within TranslationProvider");
+    throw new Error(
+      "useTranslationWorkspace must be used within TranslationProvider",
+    );
   }
   return ctx;
 };

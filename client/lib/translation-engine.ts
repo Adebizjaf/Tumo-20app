@@ -1,11 +1,17 @@
-import type { TranslationRequest, TranslationResult } from "@/features/translation/types";
+import type {
+  TranslationRequest,
+  TranslationResult,
+} from "@/features/translation/types";
 
 const TRANSLATION_TIMEOUT = 12_000;
 const API_BASE = "/api/translation";
 const CLIENT_TRANSLATE_ENDPOINT = `${API_BASE}/translate`;
 const CLIENT_DETECT_ENDPOINT = `${API_BASE}/detect`;
 
-const OFFLINE_DICTIONARY: Record<string, Record<string, Record<string, string>>> = {
+const OFFLINE_DICTIONARY: Record<
+  string,
+  Record<string, Record<string, string>>
+> = {
   en: {
     es: {
       hello: "hola",
@@ -65,7 +71,11 @@ const OFFLINE_DICTIONARY: Record<string, Record<string, Record<string, string>>>
   },
 };
 
-const LANGUAGE_PATTERNS: Array<{ language: string; pattern: RegExp; confidence: number }> = [
+const LANGUAGE_PATTERNS: Array<{
+  language: string;
+  pattern: RegExp;
+  confidence: number;
+}> = [
   { language: "es", pattern: /[ñáéíóúü¿¡]/i, confidence: 0.88 },
   { language: "fr", pattern: /[àâçéèêëîïôûùüÿœæ]/i, confidence: 0.86 },
   { language: "de", pattern: /[äöüß]/i, confidence: 0.8 },
@@ -91,7 +101,11 @@ const fetchWithTimeout = async (
     return response;
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : typeof error === "string" ? error : "unknown";
+      error instanceof Error
+        ? error.message
+        : typeof error === "string"
+          ? error
+          : "unknown";
     console.warn(`Translation fetch failed: ${message}`);
     return undefined;
   } finally {
@@ -128,7 +142,8 @@ const fallbackTranslate = (
   return {
     text: translated,
     provider: "local",
-    detectedLanguage: source === "auto" ? Object.keys(OFFLINE_DICTIONARY)[0] : source,
+    detectedLanguage:
+      source === "auto" ? Object.keys(OFFLINE_DICTIONARY)[0] : source,
     confidence: 0.4,
   };
 };
@@ -150,7 +165,8 @@ export const detectLanguage = async (
     });
 
     if (response?.ok) {
-      const data: Array<{ language: string; confidence: number }> = await response.json();
+      const data: Array<{ language: string; confidence: number }> =
+        await response.json();
       if (Array.isArray(data) && data.length > 0) {
         return { language: data[0].language, confidence: data[0].confidence };
       }
@@ -193,8 +209,10 @@ export const translateText = async (
 
     if (response?.ok) {
       const payload = await response.json();
-      const translatedText = payload.translatedText ?? payload.translation ?? "";
-      const detectedLanguage = payload.detectedLanguage ?? payload.detected ?? source;
+      const translatedText =
+        payload.translatedText ?? payload.translation ?? "";
+      const detectedLanguage =
+        payload.detectedLanguage ?? payload.detected ?? source;
 
       return {
         text: translatedText,
@@ -306,13 +324,17 @@ let activeRecognition: SpeechRecognitionInstance | null = null;
 
 type RecognitionConstructor = new () => SpeechRecognitionInstance;
 
-const getSpeechRecognitionConstructor = (): RecognitionConstructor | undefined => {
+const getSpeechRecognitionConstructor = ():
+  | RecognitionConstructor
+  | undefined => {
   if (typeof window === "undefined") {
     return undefined;
   }
   return (
-    (window as unknown as { SpeechRecognition?: RecognitionConstructor }).SpeechRecognition ??
-    (window as unknown as { webkitSpeechRecognition?: RecognitionConstructor }).webkitSpeechRecognition
+    (window as unknown as { SpeechRecognition?: RecognitionConstructor })
+      .SpeechRecognition ??
+    (window as unknown as { webkitSpeechRecognition?: RecognitionConstructor })
+      .webkitSpeechRecognition
   );
 };
 
@@ -337,7 +359,10 @@ export const startSpeechRecognition = (
 
   recognition.onstart = () => callbacks.onStart?.();
   recognition.onerror = (event: any) => {
-    const errorMessage = typeof event?.error === "string" ? event.error : "Speech recognition error";
+    const errorMessage =
+      typeof event?.error === "string"
+        ? event.error
+        : "Speech recognition error";
     callbacks.onError?.(errorMessage);
   };
   recognition.onend = () => {
@@ -379,7 +404,10 @@ export const stopSpeechRecognition = () => {
   }
 };
 
-export const extractTextFromImage = async (file: File, languageHint = "eng") => {
+export const extractTextFromImage = async (
+  file: File,
+  languageHint = "eng",
+) => {
   const { default: Tesseract } = await import(
     /* @vite-ignore */ "tesseract.js"
   );

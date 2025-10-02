@@ -29,8 +29,8 @@ const Conversations = () => (
           Live waveform visualiser
         </div>
         <p className="text-sm text-muted-foreground">
-          Stay tuned for interactive waveforms that react to each speaker in real
-          time, paired with adaptive translation delays under 200ms.
+          Stay tuned for interactive waveforms that react to each speaker in
+          real time, paired with adaptive translation delays under 200ms.
         </p>
       </div>
       <div className="rounded-3xl border border-border/50 bg-card/70 p-6 backdrop-blur">
@@ -39,8 +39,8 @@ const Conversations = () => (
           Dual-channel transcripts
         </div>
         <p className="text-sm text-muted-foreground">
-          Multi-language transcripts and smart diarisation will land here, so you
-          can review an entire conversation and export it instantly.
+          Multi-language transcripts and smart diarisation will land here, so
+          you can review an entire conversation and export it instantly.
         </p>
       </div>
     </div>

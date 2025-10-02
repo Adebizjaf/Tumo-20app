@@ -16,7 +16,7 @@ const Conversations = () => (
           asChild
           className="rounded-full border-dashed"
         >
-          <a href="mailto:adebisijafojo1@gmail.com?subject=LinguaSphere%20Conversation%20Flow">
+          <a href="mailto:adebisijafojo1@gmail.com?subject=Tumọ%20Conversation%20Flow">
             Request early access
           </a>
         </Button>

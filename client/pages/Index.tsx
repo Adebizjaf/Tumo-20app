@@ -75,7 +75,7 @@ const Index = () => {
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="space-y-4">
                 <div className="flex items-center gap-3 text-xs uppercase tracking-[0.4em] text-muted-foreground">
-                  <Sparkle className="h-4 w-4 text-primary" />
+                  <Sparkles className="h-4 w-4 text-primary" />
                   LinguaSphere Engine
                 </div>
                 <h1 className="font-display text-4xl font-semibold leading-[1.1] tracking-tight text-foreground sm:text-5xl">

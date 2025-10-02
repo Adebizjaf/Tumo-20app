@@ -200,7 +200,7 @@ export const translateText = async (
         text: translatedText,
         detectedLanguage,
         confidence: payload.confidence ?? 0.9,
-        provider: payload.provider ?? payload.providerName ?? "linguasphere-proxy",
+        provider: payload.provider ?? payload.providerName ?? "tumo-proxy",
         latencyMs: performance.now() - started,
       };
     }

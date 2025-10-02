@@ -176,6 +176,7 @@ export const detectLanguage = async (
     );
 
     if (response?.ok) {
+      remoteCooldownUntil = 0;
       const data: Array<{ language: string; confidence: number }> = await response.json();
       if (Array.isArray(data) && data.length > 0) {
         return { language: data[0].language, confidence: data[0].confidence };
@@ -227,6 +228,7 @@ export const translateText = async (
     });
 
     if (response?.ok) {
+      remoteCooldownUntil = 0;
       const payload = await response.json();
       const translatedText = payload.translatedText ?? payload.translation ?? "";
       const detectedLanguage = payload.detectedLanguage ?? payload.detected ?? source;

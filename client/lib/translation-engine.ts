@@ -3,6 +3,7 @@ import type { TranslationRequest, TranslationResult } from "@/features/translati
 const DEFAULT_TRANSLATION_ENDPOINT =
   import.meta.env.VITE_TRANSLATION_API_URL ?? "https://libretranslate.de";
 const TRANSLATION_TIMEOUT = 12_000;
+const REMOTE_COOLDOWN_MS = 60_000;
 
 const OFFLINE_DICTIONARY: Record<string, Record<string, Record<string, string>>> = {
   en: {
@@ -78,6 +79,20 @@ const LANGUAGE_PATTERNS: Array<{ language: string; pattern: RegExp; confidence: 
 
 const sanitizeEndpoint = (endpoint: string) => endpoint.replace(/\/$/, "");
 
+let remoteCooldownUntil = 0;
+
+const markRemoteFailure = () => {
+  remoteCooldownUntil = Date.now() + REMOTE_COOLDOWN_MS;
+};
+
+const canAttemptRemote = () => {
+  const online = typeof navigator === "undefined" ? true : navigator.onLine;
+  if (!online) {
+    return false;
+  }
+  return Date.now() >= remoteCooldownUntil;
+};
+
 const fetchWithTimeout = async (
   input: RequestInfo | URL,
   init?: RequestInit,
@@ -91,7 +106,10 @@ const fetchWithTimeout = async (
     });
     return response;
   } catch (error) {
-    console.warn("Translation fetch failed", error);
+    markRemoteFailure();
+    const message =
+      error instanceof Error ? error.message : typeof error === "string" ? error : "unknown";
+    console.warn(`Translation fetch failed: ${message}`);
     return undefined;
   } finally {
     clearTimeout(timeout);
@@ -139,7 +157,13 @@ export const detectLanguage = async (
     return { language: "", confidence: 0 };
   }
 
+  const attemptRemote = canAttemptRemote();
+
   try {
+    if (!attemptRemote) {
+      throw new Error("skip-remote-detect");
+    }
+
     const response = await fetchWithTimeout(
       `${sanitizeEndpoint(DEFAULT_TRANSLATION_ENDPOINT)}/detect`,
       {
@@ -158,6 +182,9 @@ export const detectLanguage = async (
       }
     }
   } catch (error) {
+    if (error instanceof Error && error.message !== "skip-remote-detect") {
+      markRemoteFailure();
+    }
     for (const pattern of LANGUAGE_PATTERNS) {
       if (pattern.pattern.test(text)) {
         return { language: pattern.language, confidence: pattern.confidence };
@@ -178,7 +205,13 @@ export const translateText = async (
   const endpoint = sanitizeEndpoint(DEFAULT_TRANSLATION_ENDPOINT);
   const started = performance.now();
 
+  const attemptRemote = canAttemptRemote();
+
   try {
+    if (!attemptRemote) {
+      throw new Error("skip-remote-translate");
+    }
+
     const body = {
       q: text,
       source: source === "auto" ? "auto" : source,
@@ -209,6 +242,9 @@ export const translateText = async (
 
     throw new Error(response ? `Translation failed with status ${response.status}` : "Translation network error");
   } catch (error) {
+    if (error instanceof Error && error.message !== "skip-remote-translate") {
+      markRemoteFailure();
+    }
     const fallback = fallbackTranslate(text, source, target);
     return {
       ...fallback,

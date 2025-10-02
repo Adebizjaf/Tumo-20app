@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import AppLayout from "@/components/layout/AppLayout";
+import { TranslationProvider } from "@/features/translation/TranslationProvider";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Conversations from "./pages/Conversations";
@@ -21,15 +22,17 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route index element={<Index />} />
-            <Route path="conversations" element={<Conversations />} />
-            <Route path="history" element={<History />} />
-            <Route path="settings" element={<Settings />} />
-            <Route path="*" element={<NotFound />} />
-          </Route>
-        </Routes>
+        <TranslationProvider>
+          <Routes>
+            <Route element={<AppLayout />}>
+              <Route index element={<Index />} />
+              <Route path="conversations" element={<Conversations />} />
+              <Route path="history" element={<History />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
+          </Routes>
+        </TranslationProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

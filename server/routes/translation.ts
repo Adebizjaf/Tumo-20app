@@ -1,10 +1,16 @@
 import { Router } from "express";
 
 const TRANSLATION_API_URL =
-  process.env.TRANSLATION_API_URL ?? "https://libretranslate.de";
+  process.env.TRANSLATION_API_URL ?? "https://libretranslate.com";
 const TRANSLATION_TIMEOUT_MS = Number(
   process.env.TRANSLATION_TIMEOUT_MS ?? 12_000,
 );
+
+// Fallback APIs to try if primary fails
+const FALLBACK_APIS = [
+  "https://translate.argosopentech.com",
+  "https://libretranslate.de",
+];
 
 const sanitizeEndpoint = (endpoint: string) => endpoint.replace(/\/$/, "");
 
@@ -14,24 +20,42 @@ const callRemote = async <Payload>(
   path: string,
   payload: Payload,
 ): Promise<globalThis.Response | undefined> => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), TRANSLATION_TIMEOUT_MS);
-  try {
-    const response = await fetch(`${remoteEndpoint}${path}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-    return response;
-  } catch (error) {
-    console.warn("Remote translation unreachable", error);
-    return undefined;
-  } finally {
-    clearTimeout(timeout);
+  // Try primary endpoint first
+  const endpoints = [remoteEndpoint, ...FALLBACK_APIS];
+  
+  for (const endpoint of endpoints) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), TRANSLATION_TIMEOUT_MS);
+    
+    try {
+      console.log(`Trying translation API: ${endpoint}${path}`);
+      const response = await fetch(`${endpoint}${path}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      
+      // If we get a successful response, return it
+      if (response.ok) {
+        console.log(`Translation successful using: ${endpoint}`);
+        return response;
+      }
+      
+      // If we get an error response (not network error), log it and try next
+      console.warn(`Translation API ${endpoint} returned status: ${response.status}`);
+      
+    } catch (error) {
+      console.warn(`Remote translation unreachable at ${endpoint}:`, error);
+    } finally {
+      clearTimeout(timeout);
+    }
   }
+  
+  console.error("All translation API endpoints failed");
+  return undefined;
 };
 
 const parseBody = async <T = unknown>(response: globalThis.Response) => {

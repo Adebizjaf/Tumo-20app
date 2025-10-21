@@ -373,6 +373,14 @@ translationRouter.post("/translate", async (req, res) => {
   const { json, raw } = await parseBody<{
     responseData?: { translatedText?: string };
     responseStatus?: number;
+    matches?: Array<{
+      id: string;
+      segment: string;
+      translation: string;
+      quality: string;
+      reference: string;
+      match: number;
+    }>;
   }>(response);
 
   if (!response.ok || !json || !json.responseData) {
@@ -389,8 +397,98 @@ translationRouter.post("/translate", async (req, res) => {
     return res.status(status).json(payload);
   }
 
+  // Log full MyMemory response for debugging
+  console.log("=== MyMemory API Response ===");
+  console.log("Full JSON:", JSON.stringify(json, null, 2));
+  console.log("responseStatus:", json.responseStatus);
+  console.log("translatedText:", json.responseData.translatedText);
+  if (json.matches && json.matches.length > 0) {
+    console.log("Translation Memory matches:");
+    json.matches.forEach((match, idx) => {
+      console.log(`  Match ${idx + 1}:`, {
+        quality: match.quality,
+        match: match.match,
+        segment: match.segment,
+        translation: match.translation,
+        reference: match.reference,
+      });
+    });
+  }
+
   // Convert MyMemory response format to our expected format
   let translatedText = json.responseData.translatedText || text;
+
+  // Quality filtering: MyMemory often returns low-quality TM matches even with mt=1
+  // Filter matches by quality score and prefer higher quality translations
+  if (json.matches && json.matches.length > 0) {
+    const MIN_QUALITY = 50; // Minimum acceptable quality score
+
+    // Find the best quality match
+    const qualityMatches = json.matches
+      .filter((m) => {
+        const quality =
+          typeof m.quality === "string" ? parseInt(m.quality, 10) : m.quality;
+        return !isNaN(quality) && quality >= MIN_QUALITY;
+      })
+      .sort((a, b) => {
+        const qualityA =
+          typeof a.quality === "string" ? parseInt(a.quality, 10) : a.quality;
+        const qualityB =
+          typeof b.quality === "string" ? parseInt(b.quality, 10) : b.quality;
+        return qualityB - qualityA; // Sort descending by quality
+      });
+
+    if (qualityMatches.length > 0) {
+      const bestMatch = qualityMatches[0];
+      const bestQuality =
+        typeof bestMatch.quality === "string"
+          ? parseInt(bestMatch.quality, 10)
+          : bestMatch.quality;
+      const currentQuality = json.matches[0].quality;
+      const currentQualityNum =
+        typeof currentQuality === "string"
+          ? parseInt(currentQuality, 10)
+          : currentQuality;
+
+      console.log(
+        `Quality check: current match quality=${currentQualityNum}, best available quality=${bestQuality}`,
+      );
+
+      if (bestQuality > currentQualityNum) {
+        console.log(
+          `Replacing low-quality translation with better match: "${translatedText}" -> "${bestMatch.translation}"`,
+        );
+        translatedText = bestMatch.translation;
+      }
+    } else {
+      // All matches are low quality, force pure MT by retrying with key parameter
+      console.log(
+        "All TM matches are low quality, forcing pure machine translation",
+      );
+      try {
+        const mtResponse = await callRemote("/get", {
+          q: text,
+          langpair: langpair,
+          key: "1", // Force pure MT, bypass TM completely
+          de: "opensource@tumo.app",
+        });
+
+        if (mtResponse && mtResponse.ok) {
+          const { json: mtJson } = await parseBody<{
+            responseData?: { translatedText?: string };
+          }>(mtResponse);
+          if (mtJson?.responseData?.translatedText) {
+            console.log(
+              `Using pure MT result: "${mtJson.responseData.translatedText}"`,
+            );
+            translatedText = mtJson.responseData.translatedText;
+          }
+        }
+      } catch (e) {
+        console.warn("Pure MT fallback failed", e);
+      }
+    }
+  }
 
   // Defensive: if target is Hindi or other non-Latin script but translation contains ASCII letters,
   // we consider it low quality (e.g., leaked technical tokens). In such case, retry once without TMs.

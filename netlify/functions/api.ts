@@ -2,11 +2,11 @@ import serverless from "serverless-http";
 
 import { createServer } from "../../server";
 
-// Wrap the serverless handler to parse body before Express receives it
 const expressHandler = serverless(createServer(), {
-  binary: false
+  binary: false,
 });
 
+// Wrap the serverless-http handler to parse the body before passing to Express
 export const handler = async (event: any, context: any) => {
   console.log("=== Netlify Function Request Debug ===");
   console.log("Event body type:", typeof event.body);
@@ -15,18 +15,20 @@ export const handler = async (event: any, context: any) => {
   console.log("Event httpMethod:", event.httpMethod);
   console.log("Event path:", event.path);
   
-  // Parse the body if it's a string
-  if (event.body && typeof event.body === 'string' && !event.isBase64Encoded) {
+  // Parse JSON body if it's a string
+  if (event.body && typeof event.body === 'string' && event.httpMethod === 'POST') {
     try {
-      const parsed = JSON.parse(event.body);
-      console.log("Successfully parsed body:", parsed);
-      // Update the event with parsed body
-      event.body = JSON.stringify(parsed); // Keep as string but ensure it's valid JSON
+      const parsedBody = JSON.parse(event.body);
+      console.log("Parsed body:", parsedBody);
+      // Create a new event object with parsed body
+      event = {
+        ...event,
+        body: JSON.stringify(parsedBody), // serverless-http expects string
+      };
     } catch (e) {
-      console.error("Failed to parse event body:", e);
+      console.error("Failed to parse body:", e);
     }
   }
   
-  // Pass to Express handler
   return expressHandler(event, context);
 };

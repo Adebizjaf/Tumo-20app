@@ -84,6 +84,101 @@ const formatErrorPayload = (
   details,
 });
 
+// Simple language detection based on character patterns
+const detectLanguage = (text: string): string => {
+  const trimmedText = text.trim().toLowerCase();
+  
+  // Arabic detection (Arabic script)
+  if (/[\u0600-\u06FF]/.test(text)) {
+    return "ar";
+  }
+  
+  // Chinese detection (CJK characters)
+  if (/[\u4E00-\u9FFF]/.test(text)) {
+    return "zh";
+  }
+  
+  // Japanese detection (Hiragana/Katakana)
+  if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text)) {
+    return "ja";
+  }
+  
+  // Korean detection (Hangul)
+  if (/[\uAC00-\uD7AF]/.test(text)) {
+    return "ko";
+  }
+  
+  // Russian detection (Cyrillic)
+  if (/[\u0400-\u04FF]/.test(text)) {
+    return "ru";
+  }
+  
+  // Greek detection
+  if (/[\u0370-\u03FF]/.test(text)) {
+    return "el";
+  }
+  
+  // Hebrew detection
+  if (/[\u0590-\u05FF]/.test(text)) {
+    return "he";
+  }
+  
+  // Thai detection
+  if (/[\u0E00-\u0E7F]/.test(text)) {
+    return "th";
+  }
+  
+  // Common European language patterns
+  const words = trimmedText.split(/\s+/);
+  
+  // French indicators
+  const frenchWords = ['le', 'la', 'les', 'de', 'et', 'est', 'un', 'une', 'des', 'je', 'tu', 'il', 'elle', 'nous', 'vous', 'avec', 'pour', 'dans'];
+  const frenchCount = words.filter(w => frenchWords.includes(w)).length;
+  
+  // Spanish indicators
+  const spanishWords = ['el', 'la', 'los', 'las', 'de', 'y', 'es', 'un', 'una', 'del', 'en', 'que', 'por', 'para', 'con', 'yo', 'tú', 'él', 'ella'];
+  const spanishCount = words.filter(w => spanishWords.includes(w)).length;
+  
+  // Portuguese indicators
+  const portugueseWords = ['o', 'a', 'os', 'as', 'de', 'e', 'é', 'um', 'uma', 'do', 'da', 'em', 'que', 'por', 'para', 'com', 'não', 'são'];
+  const portugueseCount = words.filter(w => portugueseWords.includes(w)).length;
+  
+  // German indicators (with umlauts)
+  const germanWords = ['der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'und', 'ist', 'nicht', 'ich', 'du', 'er', 'sie', 'wir', 'mit', 'für'];
+  const germanCount = words.filter(w => germanWords.includes(w)).length;
+  if (/[äöüß]/i.test(text)) {
+    return "de";
+  }
+  
+  // Italian indicators
+  const italianWords = ['il', 'lo', 'la', 'i', 'gli', 'le', 'di', 'e', 'è', 'un', 'una', 'del', 'che', 'per', 'con', 'non', 'sono'];
+  const italianCount = words.filter(w => italianWords.includes(w)).length;
+  
+  // Dutch indicators
+  const dutchWords = ['de', 'het', 'een', 'en', 'van', 'is', 'niet', 'ik', 'je', 'hij', 'zij', 'wij', 'met', 'voor', 'zijn'];
+  const dutchCount = words.filter(w => dutchWords.includes(w)).length;
+  
+  // Compare counts
+  const languageScores = [
+    { lang: 'fr', score: frenchCount },
+    { lang: 'es', score: spanishCount },
+    { lang: 'pt', score: portugueseCount },
+    { lang: 'de', score: germanCount },
+    { lang: 'it', score: italianCount },
+    { lang: 'nl', score: dutchCount },
+  ];
+  
+  languageScores.sort((a, b) => b.score - a.score);
+  
+  // If we found good matches, return the best one
+  if (languageScores[0].score > 0) {
+    return languageScores[0].lang;
+  }
+  
+  // Default to English for Latin script
+  return "en";
+};
+
 export const translationRouter = Router();
 
 translationRouter.post("/detect", async (req, res) => {
@@ -94,13 +189,12 @@ translationRouter.post("/detect", async (req, res) => {
       .json(formatErrorPayload(400, "Missing text for detection"));
   }
 
-  // MyMemory doesn't have a dedicated detect endpoint
-  // We'll use a simple heuristic or return auto
-  // For now, return a simple response indicating auto-detection
+  const detectedLanguage = detectLanguage(text);
+  
   return res.json([
     {
-      language: "auto",
-      confidence: 0.5,
+      language: detectedLanguage,
+      confidence: 0.8,
     },
   ]);
 });
@@ -131,8 +225,16 @@ translationRouter.post("/translate", async (req, res) => {
       .json(formatErrorPayload(400, "Missing target language"));
   }
 
+  // Auto-detect source language if needed
+  let sourceLanguage = source;
+  if (!source || source === "auto") {
+    sourceLanguage = detectLanguage(text);
+    console.log(`Auto-detected source language: ${sourceLanguage}`);
+  }
+
   // MyMemory API format: /get?q=text&langpair=source|target
-  const langpair = `${source && source !== "auto" ? source : "en"}|${target}`;
+  const langpair = `${sourceLanguage}|${target}`;
+  console.log(`Translation langpair: ${langpair}`);
   
   const response = await callRemote("/get", {
     q: text,

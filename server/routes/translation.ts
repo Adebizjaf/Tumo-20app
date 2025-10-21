@@ -106,6 +106,12 @@ translationRouter.post("/detect", async (req, res) => {
 });
 
 translationRouter.post("/translate", async (req, res) => {
+  // Debug logging for Netlify deployment
+  console.log("=== Translation Request Debug ===");
+  console.log("req.body type:", typeof req.body);
+  console.log("req.body:", JSON.stringify(req.body, null, 2));
+  console.log("req.headers:", JSON.stringify(req.headers, null, 2));
+  
   const { text, source, target } = req.body as {
     text?: string;
     source?: string;
@@ -113,6 +119,7 @@ translationRouter.post("/translate", async (req, res) => {
   };
 
   if (typeof text !== "string" || !text.trim()) {
+    console.error("Missing or invalid text field:", { text, bodyType: typeof req.body, body: req.body });
     return res
       .status(400)
       .json(formatErrorPayload(400, "Missing text for translation"));

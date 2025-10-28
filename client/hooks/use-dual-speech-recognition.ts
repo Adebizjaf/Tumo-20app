@@ -147,6 +147,46 @@ export const useDualSpeechRecognition = ({
   }, [isActive, speakerALanguage, speakerBLanguage, currentSpeaker, onSpeechResult]);
 
   // Initialize speech recognition
+  // Check microphone permissions before starting
+  const checkMicrophonePermissions = async (): Promise<boolean> => {
+    try {
+      // First check if permissions API is available
+      if ('permissions' in navigator) {
+        const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+        console.log('Microphone permission status:', permission.state);
+        
+        if (permission.state === 'denied') {
+          setError('Microphone access is blocked. Please enable microphone permissions in your browser settings.');
+          return false;
+        }
+      }
+
+      // Try to access microphone to trigger permission prompt
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('Microphone access granted');
+      
+      // Stop the stream immediately as we only needed it for permission check
+      stream.getTracks().forEach(track => track.stop());
+      return true;
+    } catch (err) {
+      console.error('Microphone access error:', err);
+      if (err instanceof DOMException) {
+        if (err.name === 'NotAllowedError') {
+          setError('Microphone access denied. Please click the microphone icon in your browser address bar and allow access.');
+        } else if (err.name === 'NotFoundError') {
+          setError('No microphone found. Please connect a microphone and try again.');
+        } else if (err.name === 'NotReadableError') {
+          setError('Microphone is being used by another application. Please close other applications and try again.');
+        } else {
+          setError(`Microphone error: ${err.message}`);
+        }
+      } else {
+        setError('Failed to access microphone. Please check your device and browser settings.');
+      }
+      return false;
+    }
+  };
+
   useEffect(() => {
     if (!isActive) {
       if (recognitionRef.current) {
@@ -156,12 +196,19 @@ export const useDualSpeechRecognition = ({
       return;
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
-    if (!SpeechRecognition) {
-      setError('Speech recognition is not supported in this browser');
-      return;
-    }
+    // Check microphone permissions first
+    const initializeSpeechRecognition = async () => {
+      const hasPermission = await checkMicrophonePermissions();
+      if (!hasPermission) {
+        return;
+      }
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      
+      if (!SpeechRecognition) {
+        setError('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
+        return;
+      }
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
@@ -259,21 +306,25 @@ export const useDualSpeechRecognition = ({
       }
     };
 
-    recognitionRef.current = recognition;
-    
-    try {
-      recognition.start();
-    } catch (error) {
-      console.error('Failed to start speech recognition:', error);
-      setError('Failed to start speech recognition');
-    }
+      recognitionRef.current = recognition;
+      
+      try {
+        recognition.start();
+      } catch (error) {
+        console.error('Failed to start speech recognition:', error);
+        setError('Failed to start speech recognition');
+      }
+    };
+
+    // Initialize speech recognition
+    initializeSpeechRecognition();
 
     return () => {
       if (speakerDetectionTimeout.current) {
         clearTimeout(speakerDetectionTimeout.current);
       }
-      if (recognition) {
-        recognition.stop();
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
       }
     };
   }, [isActive, speakerALanguage, speakerBLanguage, detectSpeaker, onSpeechResult, onSpeakerChange]);

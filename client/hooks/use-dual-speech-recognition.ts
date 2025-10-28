@@ -1,0 +1,253 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+import { translateText } from "@/lib/translation-engine";
+
+interface SpeechResult {
+  text: string;
+  confidence: number;
+  isFinal: boolean;
+  timestamp: Date;
+  speaker?: 'A' | 'B';
+}
+
+interface UseDualSpeechRecognitionProps {
+  isActive: boolean;
+  speakerALanguage: string;
+  speakerBLanguage: string;
+  onSpeechResult?: (result: SpeechResult & { 
+    translatedText?: string; 
+    detectedLanguage?: string;
+  }) => void;
+  onSpeakerChange?: (speaker: 'A' | 'B' | null) => void;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+  message?: string;
+}
+
+// Extend Window interface for SpeechRecognition
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
+
+export const useDualSpeechRecognition = ({
+  isActive,
+  speakerALanguage,
+  speakerBLanguage,
+  onSpeechResult,
+  onSpeakerChange
+}: UseDualSpeechRecognitionProps) => {
+  const [isListening, setIsListening] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentSpeaker, setCurrentSpeaker] = useState<'A' | 'B' | null>(null);
+  
+  const recognitionRef = useRef<any>(null);
+  const lastSpeechTimestamp = useRef<Date | null>(null);
+  const speakerDetectionTimeout = useRef<NodeJS.Timeout>();
+  const speechBuffer = useRef<string>('');
+
+  // Detect which speaker is talking based on language patterns and timing
+  const detectSpeaker = useCallback((text: string): 'A' | 'B' => {
+    // Simple heuristic: detect language and assign to corresponding speaker
+    const lowerText = text.toLowerCase();
+    
+    // Language-specific word patterns
+    const languagePatterns = {
+      en: /\b(the|and|is|to|a|in|that|have|i|it|for|not|on|with|he|as|you|do|at)\b/g,
+      es: /\b(el|la|de|que|y|a|en|un|es|se|no|te|lo|le|da|su|por|son|con|para|al)\b/g,
+      fr: /\b(le|de|et|à|un|il|être|et|en|avoir|que|pour|dans|ce|son|une|sur|avec|ne|se)\b/g,
+      de: /\b(der|die|und|in|den|von|zu|das|mit|sich|des|auf|für|ist|im|dem|nicht|ein|eine)\b/g,
+      pt: /\b(o|a|e|de|do|da|que|em|um|para|com|não|uma|os|no|se|na|por|mais|as|dos)\b/g,
+    };
+    
+    // Count matches for each language
+    const speakerAMatches = (languagePatterns[speakerALanguage as keyof typeof languagePatterns] || /(?:)/g);
+    const speakerBMatches = (languagePatterns[speakerBLanguage as keyof typeof languagePatterns] || /(?:)/g);
+    
+    const aCount = (text.match(speakerAMatches) || []).length;
+    const bCount = (text.match(speakerBMatches) || []).length;
+    
+    // If unclear, use timing and alternation logic
+    if (aCount === bCount) {
+      // Alternate speakers if no clear language indicator
+      return currentSpeaker === 'A' ? 'B' : 'A';
+    }
+    
+    return aCount > bCount ? 'A' : 'B';
+  }, [speakerALanguage, speakerBLanguage, currentSpeaker]);
+
+  // Initialize speech recognition
+  useEffect(() => {
+    if (!isActive) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        setIsListening(false);
+      }
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      setError('Speech recognition is not supported in this browser');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'auto'; // Will detect language automatically
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setError(null);
+      console.log('Speech recognition started');
+    };
+
+    recognition.onresult = async (event: SpeechRecognitionEvent) => {
+      const lastResult = event.results[event.resultIndex];
+      const transcript = lastResult[0].transcript;
+      const confidence = lastResult[0].confidence;
+      const isFinal = lastResult.isFinal;
+      
+      // Update speech buffer
+      if (isFinal) {
+        speechBuffer.current = transcript;
+      }
+
+      // Detect speaker
+      const detectedSpeaker = detectSpeaker(transcript);
+      
+      // Update current speaker and notify parent
+      if (detectedSpeaker !== currentSpeaker) {
+        setCurrentSpeaker(detectedSpeaker);
+        onSpeakerChange?.(detectedSpeaker);
+      }
+
+      // Clear speaker detection timeout and set new one
+      if (speakerDetectionTimeout.current) {
+        clearTimeout(speakerDetectionTimeout.current);
+      }
+      
+      speakerDetectionTimeout.current = setTimeout(() => {
+        setCurrentSpeaker(null);
+        onSpeakerChange?.(null);
+      }, 2000); // Clear speaker after 2 seconds of silence
+
+      const result: SpeechResult = {
+        text: transcript,
+        confidence: confidence || 0.8,
+        isFinal,
+        timestamp: new Date(),
+        speaker: detectedSpeaker
+      };
+
+      // Translate if this is a final result
+      if (isFinal && transcript.trim()) {
+        try {
+          const targetLanguage = detectedSpeaker === 'A' ? speakerBLanguage : speakerALanguage;
+          const translationResult = await translateText({
+            text: transcript,
+            source: 'auto',
+            target: targetLanguage
+          });
+          
+          onSpeechResult?.({
+            ...result,
+            translatedText: translationResult.text,
+            detectedLanguage: translationResult.detectedLanguage
+          });
+        } catch (error) {
+          console.error('Translation failed:', error);
+          onSpeechResult?.(result);
+        }
+      } else if (!isFinal) {
+        // Send interim results without translation
+        onSpeechResult?.(result);
+      }
+
+      lastSpeechTimestamp.current = new Date();
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      console.error('Speech recognition error:', event.error);
+      setError(`Speech recognition error: ${event.error}`);
+      
+      if (event.error === 'not-allowed') {
+        setError('Microphone access denied. Please allow microphone permissions.');
+      } else if (event.error === 'no-speech') {
+        // Don't treat no-speech as a critical error in continuous mode
+        console.log('No speech detected, continuing...');
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      console.log('Speech recognition ended');
+      
+      // Restart if still active (for continuous listening)
+      if (isActive) {
+        setTimeout(() => {
+          if (isActive) {
+            recognition.start();
+          }
+        }, 100);
+      }
+    };
+
+    recognitionRef.current = recognition;
+    
+    try {
+      recognition.start();
+    } catch (error) {
+      console.error('Failed to start speech recognition:', error);
+      setError('Failed to start speech recognition');
+    }
+
+    return () => {
+      if (speakerDetectionTimeout.current) {
+        clearTimeout(speakerDetectionTimeout.current);
+      }
+      if (recognition) {
+        recognition.stop();
+      }
+    };
+  }, [isActive, speakerALanguage, speakerBLanguage, detectSpeaker, onSpeechResult, onSpeakerChange]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      if (speakerDetectionTimeout.current) {
+        clearTimeout(speakerDetectionTimeout.current);
+      }
+    };
+  }, []);
+
+  return {
+    isListening,
+    error,
+    currentSpeaker,
+    restart: () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        setTimeout(() => {
+          if (recognitionRef.current && isActive) {
+            recognitionRef.current.start();
+          }
+        }, 100);
+      }
+    }
+  };
+};

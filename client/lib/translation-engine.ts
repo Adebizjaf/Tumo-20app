@@ -2,6 +2,7 @@ import type {
   TranslationRequest,
   TranslationResult,
 } from "@/features/translation/types";
+import { offlineCache, isOffline } from "./offline-cache";
 
 const TRANSLATION_TIMEOUT = 12_000;
 const API_BASE = "/api/translation";
@@ -506,6 +507,35 @@ export const translateText = async (
   }
   const started = performance.now();
 
+  // Check offline cache first
+  const cached = offlineCache.get(text, source || 'auto', target);
+  if (cached) {
+    console.log('📦 Using cached translation:', { text, cached: cached.translatedText });
+    return {
+      text: cached.translatedText,
+      detectedLanguage: cached.source,
+      confidence: cached.confidence,
+      provider: cached.provider,
+      latencyMs: performance.now() - started,
+    };
+  }
+
+  // If offline, use fallback immediately
+  if (isOffline()) {
+    console.log('📴 Offline - using fallback translation');
+    const fallback = fallbackTranslate(text, source, target);
+    
+    // Cache the fallback result
+    if (fallback.text && fallback.text !== text) {
+      offlineCache.set(text, source || 'auto', target, fallback.text, fallback.confidence, fallback.provider);
+    }
+    
+    return {
+      ...fallback,
+      latencyMs: performance.now() - started,
+    };
+  }
+
   try {
     const response = await fetchWithTimeout(CLIENT_TRANSLATE_ENDPOINT, {
       method: "POST",
@@ -526,6 +556,18 @@ export const translateText = async (
         payload.translatedText ?? payload.translation ?? "";
       const detectedLanguage =
         payload.detectedLanguage ?? payload.detected ?? source;
+
+      // Cache successful translation
+      if (translatedText && translatedText !== text) {
+        offlineCache.set(
+          text, 
+          source || detectedLanguage || 'auto', 
+          target, 
+          translatedText, 
+          payload.confidence ?? 0.9, 
+          payload.provider ?? "libretranslate"
+        );
+      }
 
       return {
         text: translatedText,

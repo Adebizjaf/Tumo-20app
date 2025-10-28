@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Toggle } from "@/components/ui/toggle";
 import GlassCard from "@/components/ui/glass-card";
 import { Progress } from "@/components/ui/progress";
+import { OfflineStatusIndicator } from "@/components/status/OfflineStatusIndicator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
@@ -239,6 +240,9 @@ const Index = () => {
                   </Badge>
                 </div>
               </div>
+
+              {/* Offline Status Indicator */}
+              <OfflineStatusIndicator />
 
               <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
                 <div className="space-y-4">

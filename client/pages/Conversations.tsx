@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { WaveformVisualizer } from "@/components/conversation/WaveformVisualizer";
+import { OfflineStatusIndicator } from "@/components/status/OfflineStatusIndicator";
 import { useDualSpeechRecognition } from "@/hooks/use-dual-speech-recognition";
 import { 
   Mic, 
@@ -294,6 +295,9 @@ const Conversations = () => {
           </Button>
         </div>
       </div>
+
+      {/* Offline Status Indicator */}
+      <OfflineStatusIndicator />
 
       {/* Speaker Language Selection */}
       <div className="grid grid-cols-2 gap-4">

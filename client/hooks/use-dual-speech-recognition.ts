@@ -39,6 +39,33 @@ declare global {
   }
 }
 
+// Convert language codes to speech recognition compatible format (BCP 47)
+const getLangCode = (langCode: string): string => {
+  const langMap: Record<string, string> = {
+    'en': 'en-US',
+    'es': 'es-ES',
+    'fr': 'fr-FR',
+    'de': 'de-DE',
+    'pt': 'pt-BR',
+    'it': 'it-IT',
+    'nl': 'nl-NL',
+    'pl': 'pl-PL',
+    'ru': 'ru-RU',
+    'ja': 'ja-JP',
+    'ko': 'ko-KR',
+    'zh': 'zh-CN',
+    'ar': 'ar-SA',
+    'hi': 'hi-IN',
+    'tr': 'tr-TR',
+    'sv': 'sv-SE',
+    'da': 'da-DK',
+    'fi': 'fi-FI',
+    'no': 'no-NO',
+    'yo': 'en-US', // Yoruba fallback to English
+  };
+  return langMap[langCode] || `${langCode}-${langCode.toUpperCase()}`;
+};
+
 export const useDualSpeechRecognition = ({
   isActive,
   speakerALanguage,
@@ -242,13 +269,18 @@ export const useDualSpeechRecognition = ({
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'auto'; // Will detect language automatically
+    // Use primary speaker's language for recognition (Web Speech API doesn't support 'auto')
+    // The API will still recognize other languages, just optimized for this one
+    recognition.lang = getLangCode(speakerALanguage) || 'en-US';
     recognition.maxAlternatives = 1;
+    
+    console.log(`🎤 Speech recognition initialized with language: ${recognition.lang}`);
 
     recognition.onstart = () => {
       setIsListening(true);
       setError(null);
-      console.log('Speech recognition started');
+      console.log('✅ Speech recognition started successfully');
+      console.log(`🗣️ Listening for: Speaker A (${speakerALanguage}) ↔️ Speaker B (${speakerBLanguage})`);
     };
 
     recognition.onresult = async (event: SpeechRecognitionEvent) => {
@@ -310,26 +342,50 @@ export const useDualSpeechRecognition = ({
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      console.error('Speech recognition error:', event.error);
-      setError(`Speech recognition error: ${event.error}`);
+      console.error('❌ Speech recognition error:', event.error, event.message);
       
-      if (event.error === 'not-allowed') {
-        setError('Microphone access denied. Please allow microphone permissions.');
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        setError('🚫 Microphone access denied. Please allow microphone permissions in your browser.');
       } else if (event.error === 'no-speech') {
         // Don't treat no-speech as a critical error in continuous mode
-        console.log('No speech detected, continuing...');
+        console.log('⏸️ No speech detected, continuing...');
+      } else if (event.error === 'aborted') {
+        console.log('⏹️ Speech recognition aborted');
+      } else if (event.error === 'audio-capture') {
+        setError('🎤 Audio capture failed. Please check your microphone connection and try again.');
+      } else if (event.error === 'network') {
+        setError('🌐 Network error. Speech recognition requires an internet connection.');
+      } else if (event.error === 'not-allowed') {
+        setError('🚫 Speech recognition not allowed. Please check browser permissions.');
+      } else if (event.error === 'service-not-allowed') {
+        setError('🚫 Speech recognition service not allowed. Please check browser settings.');
+      } else if (event.error === 'bad-grammar') {
+        setError('⚠️ Speech recognition grammar error. Please refresh and try again.');
+      } else if (event.error === 'language-not-supported') {
+        setError(`🌍 Language not supported: ${recognition.lang}. Try switching to a different language.`);
+      } else {
+        setError(`❌ Speech recognition error: ${event.error}${event.message ? ' - ' + event.message : ''}`);
       }
     };
 
     recognition.onend = () => {
       setIsListening(false);
-      console.log('Speech recognition ended');
+      console.log('⏹️ Speech recognition ended');
       
       // Restart if still active (for continuous listening)
       if (isActive) {
+        console.log('🔄 Restarting speech recognition for continuous mode...');
         setTimeout(() => {
-          if (isActive) {
-            recognition.start();
+          if (isActive && recognitionRef.current) {
+            try {
+              recognitionRef.current.start();
+            } catch (error) {
+              console.error('❌ Failed to restart speech recognition:', error);
+              // If restart fails, it might be because recognition is already running
+              if (error instanceof Error && error.message.includes('already started')) {
+                console.log('ℹ️ Speech recognition already running');
+              }
+            }
           }
         }, 100);
       }
@@ -338,10 +394,19 @@ export const useDualSpeechRecognition = ({
       recognitionRef.current = recognition;
       
       try {
+        console.log('🎬 Starting speech recognition...');
         recognition.start();
       } catch (error) {
-        console.error('Failed to start speech recognition:', error);
-        setError('Failed to start speech recognition');
+        console.error('❌ Failed to start speech recognition:', error);
+        if (error instanceof Error) {
+          if (error.message.includes('already started')) {
+            console.log('ℹ️ Speech recognition already running');
+          } else {
+            setError(`Failed to start: ${error.message}`);
+          }
+        } else {
+          setError('Failed to start speech recognition. Please refresh and try again.');
+        }
       }
     };
 

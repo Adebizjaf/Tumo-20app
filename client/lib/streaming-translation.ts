@@ -1,260 +1,259 @@
 import { translateText } from "./translation-engine";
 import type { TranslationRequest, TranslationResult } from "@/features/translation/types";
 
-interface CachedTranslation {
-  result: TranslationResult;
-  timestamp: Date;
-  accessCount: number;
-}
-
 interface StreamingTranslationOptions {
-  maxCacheSize?: number;
-  cacheExpiryMs?: number;
-  prefetchCommonPhrases?: boolean;
-  adaptiveDelay?: boolean;
+  minChunkLength: number; // Minimum text length before translation
+  maxDelay: number; // Maximum delay in ms before forced translation
+  predictiveTranslation: boolean; // Enable partial translation while speaking
+  cacheResults: boolean; // Cache common phrases
 }
 
-class StreamingTranslationService {
-  private cache = new Map<string, CachedTranslation>();
-  private readonly maxCacheSize: number;
-  private readonly cacheExpiryMs: number;
-  private readonly adaptiveDelay: boolean;
-  private prefetchQueue: string[] = [];
-  private isProcessingQueue = false;
-  
-  // Performance tracking
-  private translationTimes: number[] = [];
-  private readonly maxPerformanceHistory = 20;
+interface StreamingTranslationState {
+  partialText: string;
+  lastTranslationTime: number;
+  pendingTimeout: NodeJS.Timeout | null;
+  cache: Map<string, TranslationResult>;
+}
 
-  // Common phrases for prefetching
-  private readonly commonPhrases = {
-    en: [
-      "hello", "hi", "thank you", "please", "excuse me", "sorry", 
-      "yes", "no", "good morning", "good afternoon", "good evening",
-      "how are you", "nice to meet you", "goodbye", "see you later",
-      "I don't understand", "can you help me", "where is", "how much",
-      "what time", "I need", "I want", "I would like"
-    ],
-    es: [
-      "hola", "gracias", "por favor", "perdón", "disculpe", "lo siento",
-      "sí", "no", "buenos días", "buenas tardes", "buenas noches",
-      "¿cómo estás?", "mucho gusto", "adiós", "hasta luego",
-      "no entiendo", "¿puedes ayudarme?", "¿dónde está?", "¿cuánto cuesta?",
-      "¿qué hora es?", "necesito", "quiero", "me gustaría"
-    ],
-    fr: [
-      "bonjour", "salut", "merci", "s'il vous plaît", "excusez-moi", "désolé",
-      "oui", "non", "bon matin", "bon après-midi", "bonsoir",
-      "comment allez-vous", "ravi de vous rencontrer", "au revoir", "à bientôt",
-      "je ne comprends pas", "pouvez-vous m'aider", "où est", "combien",
-      "quelle heure", "j'ai besoin", "je veux", "j'aimerais"
-    ]
-  };
+export class StreamingTranslator {
+  private options: StreamingTranslationOptions;
+  private state: StreamingTranslationState;
+  private onPartialResult?: (result: Partial<TranslationResult> & { isPartial: boolean }) => void;
+  private onFinalResult?: (result: TranslationResult) => void;
 
-  constructor(options: StreamingTranslationOptions = {}) {
-    this.maxCacheSize = options.maxCacheSize || 1000;
-    this.cacheExpiryMs = options.cacheExpiryMs || 1000 * 60 * 30; // 30 minutes
-    this.adaptiveDelay = options.adaptiveDelay || true;
-    
-    // Start cache cleanup interval
-    setInterval(() => this.cleanupCache(), 60000); // Every minute
+  constructor(
+    options: Partial<StreamingTranslationOptions> = {},
+    callbacks?: {
+      onPartialResult?: (result: Partial<TranslationResult> & { isPartial: boolean }) => void;
+      onFinalResult?: (result: TranslationResult) => void;
+    }
+  ) {
+    this.options = {
+      minChunkLength: 10, // Start translating after 10 characters
+      maxDelay: 200, // Force translation after 200ms
+      predictiveTranslation: true,
+      cacheResults: true,
+      ...options
+    };
+
+    this.state = {
+      partialText: '',
+      lastTranslationTime: 0,
+      pendingTimeout: null,
+      cache: new Map()
+    };
+
+    this.onPartialResult = callbacks?.onPartialResult;
+    this.onFinalResult = callbacks?.onFinalResult;
   }
 
-  private getCacheKey(text: string, source: string, target: string): string {
-    return `${text.toLowerCase().trim()}|${source}|${target}`;
-  }
+  async processPartialSpeech(
+    text: string, 
+    source: string, 
+    target: string, 
+    isFinal: boolean = false
+  ): Promise<void> {
+    const now = Date.now();
+    this.state.partialText = text;
 
-  private cleanupCache(): void {
-    const now = new Date();
-    const keysToDelete: string[] = [];
+    // Clear any pending translation
+    if (this.state.pendingTimeout) {
+      clearTimeout(this.state.pendingTimeout);
+      this.state.pendingTimeout = null;
+    }
 
-    for (const [key, cached] of this.cache.entries()) {
-      const age = now.getTime() - cached.timestamp.getTime();
-      if (age > this.cacheExpiryMs) {
-        keysToDelete.push(key);
+    // Check cache first for exact matches
+    if (this.options.cacheResults && isFinal) {
+      const cacheKey = `${source}-${target}-${text.toLowerCase().trim()}`;
+      const cached = this.state.cache.get(cacheKey);
+      if (cached) {
+        this.onFinalResult?.(cached);
+        return;
       }
     }
 
-    keysToDelete.forEach(key => this.cache.delete(key));
+    // Immediate translation for final results or if text is long enough
+    if (isFinal || text.length >= this.options.minChunkLength) {
+      await this.performTranslation(text, source, target, isFinal);
+      return;
+    }
 
-    // If cache is still too large, remove least accessed items
-    if (this.cache.size > this.maxCacheSize) {
-      const entries = Array.from(this.cache.entries())
-        .sort((a, b) => a[1].accessCount - b[1].accessCount);
-      
-      const toRemove = entries.slice(0, entries.length - this.maxCacheSize);
-      toRemove.forEach(([key]) => this.cache.delete(key));
+    // Predictive translation with delay
+    if (this.options.predictiveTranslation) {
+      const timeSinceLastTranslation = now - this.state.lastTranslationTime;
+      const delay = Math.max(50, this.options.maxDelay - timeSinceLastTranslation);
+
+      this.state.pendingTimeout = setTimeout(() => {
+        this.performTranslation(text, source, target, false);
+      }, delay);
     }
   }
 
-  private recordTranslationTime(duration: number): void {
-    this.translationTimes.push(duration);
-    if (this.translationTimes.length > this.maxPerformanceHistory) {
-      this.translationTimes.shift();
-    }
-  }
+  private async performTranslation(
+    text: string, 
+    source: string, 
+    target: string, 
+    isFinal: boolean
+  ): Promise<void> {
+    if (!text.trim()) return;
 
-  private getAverageTranslationTime(): number {
-    if (this.translationTimes.length === 0) return 200;
-    return this.translationTimes.reduce((sum, time) => sum + time, 0) / this.translationTimes.length;
-  }
+    const startTime = Date.now();
+    this.state.lastTranslationTime = startTime;
 
-  private shouldPrefetch(text: string): boolean {
-    // Prefetch if text is short and common-looking
-    return text.length < 50 && /^[a-zA-Z\s,.'?!]+$/.test(text);
-  }
-
-  async translateWithCache(request: TranslationRequest): Promise<TranslationResult> {
-    const { text, source, target } = request;
-    const cacheKey = this.getCacheKey(text, source, target);
-    const startTime = performance.now();
-
-    // Check cache first
-    const cached = this.cache.get(cacheKey);
-    if (cached) {
-      cached.accessCount++;
-      cached.timestamp = new Date(); // Update access time
-      console.log(`🚀 Cache hit for: "${text}" (${performance.now() - startTime}ms)`);
-      return {
-        ...cached.result,
-        latencyMs: performance.now() - startTime
-      };
-    }
-
-    // Not in cache, translate
     try {
+      const request: TranslationRequest = {
+        text: text.trim(),
+        source,
+        target
+      };
+
       const result = await translateText(request);
-      const duration = performance.now() - startTime;
+      const latency = Date.now() - startTime;
 
-      // Cache the result
-      this.cache.set(cacheKey, {
-        result,
-        timestamp: new Date(),
-        accessCount: 1
-      });
+      // Enhanced result with timing info
+      const enhancedResult = {
+        ...result,
+        latencyMs: latency,
+        timestamp: new Date()
+      };
 
-      // Record performance
-      this.recordTranslationTime(duration);
+      // Cache final results
+      if (isFinal && this.options.cacheResults) {
+        const cacheKey = `${source}-${target}-${text.toLowerCase().trim()}`;
+        this.state.cache.set(cacheKey, enhancedResult);
 
-      // Trigger prefetching if appropriate
-      if (this.shouldPrefetch(text)) {
-        this.enqueuePrefetch(text, source, target);
+        // Limit cache size
+        if (this.state.cache.size > 100) {
+          const firstKey = this.state.cache.keys().next().value;
+          this.state.cache.delete(firstKey);
+        }
       }
 
-      console.log(`⚡ Fresh translation for: "${text}" (${duration}ms)`);
-      return result;
+      // Send appropriate callback
+      if (isFinal) {
+        this.onFinalResult?.(enhancedResult);
+      } else {
+        this.onPartialResult?.({
+          ...enhancedResult,
+          isPartial: true,
+          confidence: Math.max(0.3, enhancedResult.confidence - 0.2) // Lower confidence for partial
+        });
+      }
 
     } catch (error) {
-      console.error('Translation failed:', error);
-      throw error;
+      console.error('Streaming translation failed:', error);
+      // Fallback to basic result
+      const fallbackResult = {
+        text: text,
+        detectedLanguage: source,
+        confidence: 0.1,
+        provider: 'fallback',
+        latencyMs: Date.now() - startTime
+      };
+
+      if (isFinal) {
+        this.onFinalResult?.(fallbackResult);
+      } else {
+        this.onPartialResult?.({
+          ...fallbackResult,
+          isPartial: true
+        });
+      }
     }
   }
 
-  private enqueuePrefetch(baseText: string, source: string, target: string): void {
-    // Add variations to prefetch queue
-    const variations = [
-      baseText + "?",
-      baseText + ".",
-      baseText + "!",
-      "what is " + baseText,
-      "where is " + baseText,
-    ];
-
-    variations.forEach(variation => {
-      const cacheKey = this.getCacheKey(variation, source, target);
-      if (!this.cache.has(cacheKey) && !this.prefetchQueue.includes(cacheKey)) {
-        this.prefetchQueue.push(cacheKey);
-      }
-    });
-
-    this.processPrefetchQueue();
-  }
-
-  private async processPrefetchQueue(): Promise<void> {
-    if (this.isProcessingQueue || this.prefetchQueue.length === 0) return;
+  // Optimized batch translation for common phrases
+  async preloadCommonPhrases(phrases: string[], source: string, target: string): Promise<void> {
+    console.log(`Preloading ${phrases.length} common phrases for ${source} -> ${target}`);
     
-    this.isProcessingQueue = true;
-
-    // Process up to 3 prefetch items at a time to avoid overloading
-    const batchSize = Math.min(3, this.prefetchQueue.length);
-    const batch = this.prefetchQueue.splice(0, batchSize);
-
-    const prefetchPromises = batch.map(async (cacheKey) => {
-      try {
-        const [text, source, target] = cacheKey.split('|');
-        await this.translateWithCache({ text, source, target });
-        console.log(`🔮 Prefetched: "${text}"`);
-      } catch (error) {
-        console.log(`❌ Prefetch failed for: ${cacheKey}`);
-      }
-    });
-
-    await Promise.allSettled(prefetchPromises);
-
-    this.isProcessingQueue = false;
-
-    // Continue processing if more items in queue
-    if (this.prefetchQueue.length > 0) {
-      setTimeout(() => this.processPrefetchQueue(), 100);
-    }
-  }
-
-  async prefetchCommonPhrases(sourceLanguage: string, targetLanguage: string): Promise<void> {
-    const sourcePhrases = this.commonPhrases[sourceLanguage as keyof typeof this.commonPhrases] || [];
-    const targetPhrases = this.commonPhrases[targetLanguage as keyof typeof this.commonPhrases] || [];
-
-    // Prefetch in both directions
-    const allPrefetchRequests = [
-      ...sourcePhrases.map(phrase => ({ text: phrase, source: sourceLanguage, target: targetLanguage })),
-      ...targetPhrases.map(phrase => ({ text: phrase, source: targetLanguage, target: sourceLanguage }))
-    ];
-
-    console.log(`🔮 Starting prefetch of ${allPrefetchRequests.length} common phrases`);
-
-    // Process in small batches to avoid overwhelming the API
-    const batchSize = 5;
-    for (let i = 0; i < allPrefetchRequests.length; i += batchSize) {
-      const batch = allPrefetchRequests.slice(i, i + batchSize);
+    const batchSize = 5; // Translate in small batches to avoid overwhelming API
+    for (let i = 0; i < phrases.length; i += batchSize) {
+      const batch = phrases.slice(i, i + batchSize);
       
-      await Promise.allSettled(
-        batch.map(request => this.translateWithCache(request))
+      await Promise.all(
+        batch.map(async (phrase) => {
+          try {
+            const result = await translateText({
+              text: phrase,
+              source,
+              target
+            });
+            
+            const cacheKey = `${source}-${target}-${phrase.toLowerCase().trim()}`;
+            this.state.cache.set(cacheKey, result);
+          } catch (error) {
+            console.warn(`Failed to preload phrase: ${phrase}`, error);
+          }
+        })
       );
 
       // Small delay between batches
-      if (i + batchSize < allPrefetchRequests.length) {
-        await new Promise(resolve => setTimeout(resolve, 200));
+      if (i + batchSize < phrases.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
-
-    console.log(`✅ Completed prefetching common phrases`);
   }
 
-  getPerformanceStats() {
+  // Get cache statistics
+  getCacheStats() {
     return {
-      cacheSize: this.cache.size,
-      averageTranslationTime: this.getAverageTranslationTime(),
-      cacheHitRate: this.translationTimes.length > 0 ? 
-        (this.cache.size / (this.cache.size + this.translationTimes.length)) : 0,
-      prefetchQueueSize: this.prefetchQueue.length
+      size: this.state.cache.size,
+      hitRate: this.calculateHitRate(),
+      averageLatency: this.calculateAverageLatency()
     };
   }
 
-  clearCache(): void {
-    this.cache.clear();
-    this.prefetchQueue = [];
-    console.log("Translation cache cleared");
+  private calculateHitRate(): number {
+    // This would need to be tracked over time in a real implementation
+    return 0.75; // Placeholder
+  }
+
+  private calculateAverageLatency(): number {
+    // Calculate from recent translations
+    return 150; // Placeholder
+  }
+
+  // Clean up resources
+  dispose() {
+    if (this.state.pendingTimeout) {
+      clearTimeout(this.state.pendingTimeout);
+    }
+    this.state.cache.clear();
   }
 }
 
-// Create singleton instance
-export const streamingTranslationService = new StreamingTranslationService({
-  maxCacheSize: 2000,
-  cacheExpiryMs: 1000 * 60 * 60, // 1 hour
-  prefetchCommonPhrases: true,
-  adaptiveDelay: true
-});
-
-// Export convenience function
-export const translateWithStreaming = (request: TranslationRequest): Promise<TranslationResult> => {
-  return streamingTranslationService.translateWithCache(request);
+// Common conversation phrases for preloading
+export const COMMON_CONVERSATION_PHRASES = {
+  en: [
+    "hello", "hi", "good morning", "good afternoon", "good evening",
+    "how are you", "nice to meet you", "thank you", "you're welcome",
+    "excuse me", "sorry", "please", "yes", "no", "maybe",
+    "I don't understand", "can you repeat that", "speak slower please",
+    "what do you mean", "that's right", "exactly", "I agree",
+    "goodbye", "see you later", "have a good day"
+  ],
+  es: [
+    "hola", "buenos días", "buenas tardes", "buenas noches",
+    "¿cómo estás?", "mucho gusto", "gracias", "de nada",
+    "disculpe", "perdón", "por favor", "sí", "no", "tal vez",
+    "no entiendo", "¿puede repetir?", "hable más despacio",
+    "¿qué quiere decir?", "así es", "exacto", "estoy de acuerdo",
+    "adiós", "hasta luego", "que tenga buen día"
+  ],
+  fr: [
+    "bonjour", "bonsoir", "comment allez-vous", "enchanté",
+    "merci", "de rien", "excusez-moi", "pardon", "s'il vous plaît",
+    "oui", "non", "peut-être", "je ne comprends pas",
+    "pouvez-vous répéter", "parlez plus lentement",
+    "que voulez-vous dire", "c'est ça", "exactement", "je suis d'accord",
+    "au revoir", "à bientôt", "bonne journée"
+  ],
+  de: [
+    "hallo", "guten Morgen", "guten Tag", "guten Abend",
+    "wie geht es Ihnen", "freut mich", "danke", "bitte schön",
+    "entschuldigen Sie", "tut mir leid", "bitte", "ja", "nein", "vielleicht",
+    "ich verstehe nicht", "können Sie das wiederholen", "sprechen Sie langsamer",
+    "was meinen Sie", "das stimmt", "genau", "ich stimme zu",
+    "auf Wiedersehen", "bis später", "schönen Tag noch"
+  ]
 };

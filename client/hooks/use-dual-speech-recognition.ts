@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { translateWithStreaming } from "@/lib/streaming-translation";
+import { translateText } from "@/lib/translation-engine";
+import { StreamingTranslator, COMMON_CONVERSATION_PHRASES } from "@/lib/streaming-translation";
 
 interface SpeechResult {
   text: string;
@@ -53,6 +54,7 @@ export const useDualSpeechRecognition = ({
   const lastSpeechTimestamp = useRef<Date | null>(null);
   const speakerDetectionTimeout = useRef<NodeJS.Timeout>();
   const speechBuffer = useRef<string>('');
+  const streamingTranslatorRef = useRef<StreamingTranslator | null>(null);
 
   // Detect which speaker is talking based on language patterns and timing
   const detectSpeaker = useCallback((text: string): 'A' | 'B' => {
@@ -83,6 +85,66 @@ export const useDualSpeechRecognition = ({
     
     return aCount > bCount ? 'A' : 'B';
   }, [speakerALanguage, speakerBLanguage, currentSpeaker]);
+
+  // Initialize streaming translator
+  useEffect(() => {
+    if (isActive) {
+      streamingTranslatorRef.current = new StreamingTranslator(
+        {
+          minChunkLength: 8, // Start translating after 8 characters for conversation
+          maxDelay: 150, // 150ms max delay for responsive conversation
+          predictiveTranslation: true,
+          cacheResults: true
+        },
+        {
+          onPartialResult: (result) => {
+            // Send partial results for live captions
+            onSpeechResult?.({
+              text: speechBuffer.current,
+              confidence: result.confidence || 0.5,
+              isFinal: false,
+              timestamp: new Date(),
+              speaker: currentSpeaker || 'A',
+              translatedText: result.text,
+              detectedLanguage: result.detectedLanguage
+            });
+          },
+          onFinalResult: (result) => {
+            onSpeechResult?.({
+              text: speechBuffer.current,
+              confidence: result.confidence,
+              isFinal: true,
+              timestamp: new Date(),
+              speaker: currentSpeaker || 'A',
+              translatedText: result.text,
+              detectedLanguage: result.detectedLanguage
+            });
+          }
+        }
+      );
+
+      // Preload common phrases for both languages
+      const phrases = [
+        ...(COMMON_CONVERSATION_PHRASES[speakerALanguage as keyof typeof COMMON_CONVERSATION_PHRASES] || []),
+        ...(COMMON_CONVERSATION_PHRASES[speakerBLanguage as keyof typeof COMMON_CONVERSATION_PHRASES] || [])
+      ];
+
+      streamingTranslatorRef.current.preloadCommonPhrases(phrases, speakerALanguage, speakerBLanguage);
+      streamingTranslatorRef.current.preloadCommonPhrases(phrases, speakerBLanguage, speakerALanguage);
+    } else {
+      if (streamingTranslatorRef.current) {
+        streamingTranslatorRef.current.dispose();
+        streamingTranslatorRef.current = null;
+      }
+    }
+
+    return () => {
+      if (streamingTranslatorRef.current) {
+        streamingTranslatorRef.current.dispose();
+        streamingTranslatorRef.current = null;
+      }
+    };
+  }, [isActive, speakerALanguage, speakerBLanguage, currentSpeaker, onSpeechResult]);
 
   // Initialize speech recognition
   useEffect(() => {
@@ -151,27 +213,20 @@ export const useDualSpeechRecognition = ({
         speaker: detectedSpeaker
       };
 
-      // Translate if this is a final result
-      if (isFinal && transcript.trim()) {
-        try {
-          const targetLanguage = detectedSpeaker === 'A' ? speakerBLanguage : speakerALanguage;
-          const translationResult = await translateWithStreaming({
-            text: transcript,
-            source: 'auto',
-            target: targetLanguage
-          });
-          
-          onSpeechResult?.({
-            ...result,
-            translatedText: translationResult.text,
-            detectedLanguage: translationResult.detectedLanguage
-          });
-        } catch (error) {
-          console.error('Translation failed:', error);
-          onSpeechResult?.(result);
-        }
-      } else if (!isFinal) {
-        // Send interim results without translation
+      // Use streaming translator for both interim and final results
+      if (transcript.trim() && streamingTranslatorRef.current) {
+        const targetLanguage = detectedSpeaker === 'A' ? speakerBLanguage : speakerALanguage;
+        const sourceLanguage = detectedSpeaker === 'A' ? speakerALanguage : speakerBLanguage;
+        
+        // Process with streaming translator
+        streamingTranslatorRef.current.processPartialSpeech(
+          transcript,
+          sourceLanguage,
+          targetLanguage,
+          isFinal
+        );
+      } else if (!transcript.trim()) {
+        // Send result without translation for empty text
         onSpeechResult?.(result);
       }
 

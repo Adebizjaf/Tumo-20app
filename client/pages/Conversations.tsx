@@ -5,8 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { WaveformVisualizer } from "@/components/conversation/WaveformVisualizer";
 import { LiveCaptions } from "@/components/conversation/LiveCaptions";
 import { useDualSpeechRecognition } from "@/hooks/use-dual-speech-recognition";
-import { streamingTranslationService } from "@/lib/streaming-translation";
-import { 
+import { useHandsFreeControls } from "@/hooks/use-hands-free-controls";
+import {
   Mic, 
   MicOff, 
   Play, 
@@ -45,9 +45,16 @@ const Conversations = () => {
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
   const [speakerALanguage, setSpeakerALanguage] = useState('en');
   const [speakerBLanguage, setSpeakerBLanguage] = useState('es');
+  const [handsFreeModeEnabled, setHandsFreeModeEnabled] = useState(false);
   const [audioLevels, setAudioLevels] = useState({ speakerA: 0, speakerB: 0 });
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
-  const [liveCaptions, setLiveCaptions] = useState<any[]>([]);
+  const [currentSpeechForCaptions, setCurrentSpeechForCaptions] = useState<{
+    text: string;
+    translatedText?: string;
+    speaker: 'A' | 'B';
+    confidence: number;
+    isFinal: boolean;
+  } | undefined>(undefined);
   
   const conversationRef = useRef<HTMLDivElement>(null);
 
@@ -57,23 +64,18 @@ const Conversations = () => {
     speakerALanguage,
     speakerBLanguage,
     onSpeechResult: (result) => {
-      // Update live captions for all results (interim and final)
-      const captionEntry = {
-        id: `${result.timestamp.getTime()}-${result.speaker}`,
-        speaker: result.speaker || 'A',
-        originalText: result.text,
-        translatedText: result.translatedText,
-        confidence: result.confidence,
-        isFinal: result.isFinal,
-        timestamp: result.timestamp
-      };
-      
-      setLiveCaptions(prev => {
-        const filtered = prev.filter(entry => entry.id !== captionEntry.id);
-        return [...filtered, captionEntry];
-      });
-      
-      // Add to conversation history only when final and translated
+      // Update live captions for all speech (interim and final)
+      if (result.text.trim()) {
+        setCurrentSpeechForCaptions({
+          text: result.text,
+          translatedText: result.translatedText,
+          speaker: result.speaker || 'A',
+          confidence: result.confidence,
+          isFinal: result.isFinal
+        });
+      }
+
+      // Add to conversation history only for final results with translation
       if (result.isFinal && result.text.trim() && result.translatedText) {
         const newEntry: ConversationEntry = {
           id: Date.now().toString(),
@@ -139,13 +141,6 @@ const Conversations = () => {
     setConversation(mockConversation);
   }, []);
 
-  // Initialize streaming translation service with prefetching
-  useEffect(() => {
-    if (speakerALanguage && speakerBLanguage) {
-      streamingTranslationService.prefetchCommonPhrases(speakerALanguage, speakerBLanguage);
-    }
-  }, [speakerALanguage, speakerBLanguage]);
-
   // Simulate speaker switching for demo purposes
   useEffect(() => {
     if (!isRecording) return;
@@ -184,59 +179,57 @@ const Conversations = () => {
       }
       setIsRecording(false);
       setCurrentSpeaker(null);
-      setLiveCaptions([]); // Clear live captions
       console.log('Stopping conversation recording');
     }
   };
 
+  const switchLanguages = () => {
+    const tempA = speakerALanguage;
+    setSpeakerALanguage(speakerBLanguage);
+    setSpeakerBLanguage(tempA);
+  };
+
+  const clearConversation = () => {
+    setConversation([]);
+    setCurrentSpeechForCaptions(undefined);
+  };
+
   const exportConversation = (format: 'txt' | 'json' | 'csv' | 'srt' = 'txt') => {
+    if (conversation.length === 0) return;
+
     const timestamp = new Date().toISOString().split('T')[0];
     const filename = `conversation-${timestamp}`;
     
-    let content = '';
-    let mimeType = '';
-    let extension = '';
+    let content: string;
+    let mimeType: string;
+    let extension: string;
 
     switch (format) {
-      case 'txt':
-        content = conversation.map(entry => 
-          `[${entry.timestamp.toLocaleTimeString()}] Speaker ${entry.speaker} (${entry.originalLanguage}): ${entry.originalText}\n` +
-          `Translation (${entry.targetLanguage}): ${entry.translatedText}\n` +
-          `Confidence: ${Math.round(entry.confidence * 100)}%\n\n`
-        ).join('');
-        mimeType = 'text/plain';
-        extension = 'txt';
-        break;
-
       case 'json':
-        const jsonData = {
+        content = JSON.stringify({
           exportDate: new Date().toISOString(),
-          speakers: {
-            A: { language: speakerALanguage },
-            B: { language: speakerBLanguage }
+          conversationId: `conv-${timestamp}`,
+          participants: {
+            speakerA: { language: speakerALanguage },
+            speakerB: { language: speakerBLanguage }
           },
-          conversation: conversation.map(entry => ({
+          messages: conversation.map(entry => ({
             id: entry.id,
             timestamp: entry.timestamp.toISOString(),
             speaker: entry.speaker,
-            original: {
-              text: entry.originalText,
-              language: entry.originalLanguage
-            },
-            translation: {
-              text: entry.translatedText,
-              language: entry.targetLanguage
-            },
+            originalText: entry.originalText,
+            translatedText: entry.translatedText,
+            originalLanguage: entry.originalLanguage,
+            targetLanguage: entry.targetLanguage,
             confidence: entry.confidence
           }))
-        };
-        content = JSON.stringify(jsonData, null, 2);
+        }, null, 2);
         mimeType = 'application/json';
         extension = 'json';
         break;
 
       case 'csv':
-        const csvHeaders = 'Timestamp,Speaker,Original Language,Original Text,Target Language,Translation,Confidence\n';
+        const csvHeader = 'Timestamp,Speaker,Original Language,Original Text,Target Language,Translation,Confidence\n';
         const csvRows = conversation.map(entry => {
           const escapeCsv = (text: string) => `"${text.replace(/"/g, '""')}"`;
           return [
@@ -246,32 +239,32 @@ const Conversations = () => {
             escapeCsv(entry.originalText),
             entry.targetLanguage,
             escapeCsv(entry.translatedText),
-            entry.confidence.toString()
+            entry.confidence.toFixed(2)
           ].join(',');
         }).join('\n');
-        content = csvHeaders + csvRows;
+        content = csvHeader + csvRows;
         mimeType = 'text/csv';
         extension = 'csv';
         break;
 
       case 'srt':
-        // SubRip subtitle format
         content = conversation.map((entry, index) => {
-          const startTime = entry.timestamp;
-          const endTime = new Date(startTime.getTime() + 3000); // 3 second duration
+          const start = entry.timestamp;
+          const end = new Date(start.getTime() + 3000); // 3 second duration
           
           const formatTime = (date: Date) => {
-            const hours = date.getHours().toString().padStart(2, '0');
-            const minutes = date.getMinutes().toString().padStart(2, '0');
-            const seconds = date.getSeconds().toString().padStart(2, '0');
-            const ms = date.getMilliseconds().toString().padStart(3, '0');
-            return `${hours}:${minutes}:${seconds},${ms}`;
+            const pad = (n: number) => n.toString().padStart(2, '0');
+            const hours = pad(date.getHours());
+            const minutes = pad(date.getMinutes());
+            const seconds = pad(date.getSeconds());
+            const milliseconds = date.getMilliseconds().toString().padStart(3, '0');
+            return `${hours}:${minutes}:${seconds},${milliseconds}`;
           };
 
           return [
             index + 1,
-            `${formatTime(startTime)} --> ${formatTime(endTime)}`,
-            `[Speaker ${entry.speaker}] ${entry.originalText}`,
+            `${formatTime(start)} --> ${formatTime(end)}`,
+            `Speaker ${entry.speaker}: ${entry.originalText}`,
             entry.translatedText,
             ''
           ].join('\n');
@@ -279,8 +272,27 @@ const Conversations = () => {
         mimeType = 'text/plain';
         extension = 'srt';
         break;
-    }
 
+      default: // txt
+        content = [
+          `Conversation Export - ${new Date().toLocaleDateString()}`,
+          `Participants: Speaker A (${speakerALanguage.toUpperCase()}) ↔ Speaker B (${speakerBLanguage.toUpperCase()})`,
+          `Total Messages: ${conversation.length}`,
+          '=' + '='.repeat(50),
+          '',
+          ...conversation.map(entry => 
+            `[${entry.timestamp.toLocaleTimeString()}] Speaker ${entry.speaker} (${entry.originalLanguage.toUpperCase()}):\n` +
+            `${entry.originalText}\n` +
+            `\n→ Translation (${entry.targetLanguage.toUpperCase()}):\n` +
+            `${entry.translatedText}\n` +
+            `(Confidence: ${Math.round(entry.confidence * 100)}%)\n`
+          )
+        ].join('\n');
+        mimeType = 'text/plain';
+        extension = 'txt';
+        break;
+    }
+    
     const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -289,6 +301,24 @@ const Conversations = () => {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  // Hands-free controls
+  const { 
+    isListening: isListeningForCommands, 
+    lastCommand, 
+    error: handsFreeError,
+    availableCommands 
+  } = useHandsFreeControls({
+    isActive: handsFreeModeEnabled,
+    language: speakerALanguage, // Use primary language for commands
+    commands: {
+      startRecording: !isRecording ? toggleRecording : undefined,
+      stopRecording: isRecording ? toggleRecording : undefined,
+      switchLanguages,
+      exportConversation: conversation.length > 0 ? exportConversation : undefined,
+      clearConversation: conversation.length > 0 ? clearConversation : undefined
+    }
+  });
 
   return (
     <section className="h-full flex flex-col space-y-6">
@@ -309,13 +339,6 @@ const Conversations = () => {
               Listening
             </Badge>
           )}
-          
-          {/* Performance indicator */}
-          {isRecording && (
-            <Badge variant="outline" className="text-xs">
-              Avg: {Math.round(streamingTranslationService.getPerformanceStats().averageTranslationTime)}ms
-            </Badge>
-          )}
         </div>
         
         <div className="flex items-center gap-2">
@@ -324,6 +347,27 @@ const Conversations = () => {
               {speechError}
             </Badge>
           )}
+          {handsFreeError && (
+            <Badge variant="destructive" className="max-w-xs truncate">
+              Voice: {handsFreeError}
+            </Badge>
+          )}
+          {lastCommand && (
+            <Badge variant="secondary" className="animate-pulse">
+              {lastCommand}
+            </Badge>
+          )}
+          <Button 
+            variant={handsFreeModeEnabled ? "default" : "outline"} 
+            size="sm"
+            onClick={() => setHandsFreeModeEnabled(!handsFreeModeEnabled)}
+          >
+            <Mic className="h-4 w-4 mr-2" />
+            Voice Commands
+            {isListeningForCommands && (
+              <div className="ml-2 h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+            )}
+          </Button>
           <Button variant="outline" size="sm">
             <Settings className="h-4 w-4 mr-2" />
             Settings
@@ -342,16 +386,16 @@ const Conversations = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => exportConversation('txt')}>
-                Text File (.txt)
+                📄 Text File (.txt)
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => exportConversation('json')}>
-                JSON Data (.json)
+                📊 JSON Data (.json)
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => exportConversation('csv')}>
-                Spreadsheet (.csv)
+                📈 Spreadsheet (.csv)
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => exportConversation('srt')}>
-                Subtitles (.srt)
+                🎬 Subtitles (.srt)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -377,7 +421,17 @@ const Conversations = () => {
               <option value="es">Spanish</option>
               <option value="fr">French</option>
               <option value="de">German</option>
+              <option value="pt">Portuguese</option>
+              <option value="ar">Arabic</option>
             </select>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={switchLanguages}
+              className="ml-2 h-6 w-6 p-0"
+            >
+              ⇄
+            </Button>
           </div>
         </Card>
         
@@ -398,7 +452,18 @@ const Conversations = () => {
               <option value="en">English</option>
               <option value="fr">French</option>
               <option value="de">German</option>
+              <option value="pt">Portuguese</option>
+              <option value="ar">Arabic</option>
             </select>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={clearConversation}
+              disabled={conversation.length === 0}
+              className="ml-2 h-6 w-6 p-0 text-red-500 hover:text-red-700"
+            >
+              ✕
+            </Button>
           </div>
         </Card>
       </div>
@@ -422,13 +487,23 @@ const Conversations = () => {
       </Card>
 
       {/* Live Captions */}
-      <Card className="p-4 bg-gradient-to-br from-background/80 to-muted/20 backdrop-blur">
-        <LiveCaptions
-          currentSpeaker={currentSpeaker}
-          isActive={isRecording}
-          entries={liveCaptions}
+      <Card className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="p-4 border-b">
+          <div className="flex items-center gap-3">
+            <MessageCircle className="h-5 w-5 text-primary" />
+            <span className="font-medium">Live Captions</span>
+            {isRecording && (
+              <Badge variant="outline" className="ml-auto">
+                Real-time
+              </Badge>
+            )}
+          </div>
+        </div>
+        <LiveCaptions 
+          currentSpeech={currentSpeechForCaptions}
           speakerALanguage={speakerALanguage}
           speakerBLanguage={speakerBLanguage}
+          isEnabled={isRecording}
         />
       </Card>
 

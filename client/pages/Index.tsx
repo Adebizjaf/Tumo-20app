@@ -12,6 +12,7 @@ import {
   Sparkles,
   Volume2,
   VolumeX,
+  Zap,
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
@@ -51,6 +52,76 @@ const linguisticInsights = [
     description: "Optimised for hands-free translation",
   },
 ];
+
+// Common phrases for quick translation by language
+const commonPhrases: Record<string, string[]> = {
+  en: [
+    "Hello", "Good morning", "Good afternoon", "Good evening",
+    "Thank you", "Please", "Yes", "No", "Excuse me",
+    "How are you?", "I don't understand", "Help",
+    "Where is...?", "How much?", "Goodbye"
+  ],
+  es: [
+    "Hola", "Buenos días", "Buenas tardes", "Buenas noches",
+    "Gracias", "Por favor", "Sí", "No", "Perdón",
+    "¿Cómo estás?", "No entiendo", "Ayuda",
+    "¿Dónde está...?", "¿Cuánto cuesta?", "Adiós"
+  ],
+  fr: [
+    "Bonjour", "Bonne journée", "Bon après-midi", "Bonsoir",
+    "Merci", "S'il vous plaît", "Oui", "Non", "Excusez-moi",
+    "Comment allez-vous?", "Je ne comprends pas", "Aide",
+    "Où est...?", "Combien?", "Au revoir"
+  ],
+  de: [
+    "Hallo", "Guten Morgen", "Guten Tag", "Guten Abend",
+    "Danke", "Bitte", "Ja", "Nein", "Entschuldigung",
+    "Wie geht es dir?", "Ich verstehe nicht", "Hilfe",
+    "Wo ist...?", "Wie viel?", "Auf Wiedersehen"
+  ],
+  pt: [
+    "Olá", "Bom dia", "Boa tarde", "Boa noite",
+    "Obrigado", "Por favor", "Sim", "Não", "Com licença",
+    "Como vai?", "Não entendo", "Ajuda",
+    "Onde está...?", "Quanto custa?", "Adeus"
+  ],
+  it: [
+    "Ciao", "Buongiorno", "Buon pomeriggio", "Buonasera",
+    "Grazie", "Per favore", "Sì", "No", "Mi scusi",
+    "Come stai?", "Non capisco", "Aiuto",
+    "Dove è...?", "Quanto costa?", "Arrivederci"
+  ],
+  ar: [
+    "مرحبا", "صباح الخير", "مساء الخير", "مساء الخير",
+    "شكرا", "من فضلك", "نعم", "لا", "عفوا",
+    "كيف حالك؟", "لا أفهم", "مساعدة",
+    "أين...؟", "كم السعر؟", "وداعا"
+  ],
+  zh: [
+    "你好", "早上好", "下午好", "晚上好",
+    "谢谢", "请", "是", "不是", "对不起",
+    "你好吗？", "我不明白", "帮助",
+    "在哪里...？", "多少钱？", "再见"
+  ],
+  ja: [
+    "こんにちは", "おはよう", "こんにちは", "こんばんは",
+    "ありがとう", "お願いします", "はい", "いいえ", "すみません",
+    "元気ですか？", "わかりません", "助けて",
+    "どこですか...？", "いくらですか？", "さようなら"
+  ],
+  ko: [
+    "안녕하세요", "좋은 아침", "좋은 오후", "좋은 저녁",
+    "감사합니다", "부탁합니다", "예", "아니오", "실례합니다",
+    "어떻게 지내세요?", "이해가 안 돼요", "도와주세요",
+    "어디에 있나요...?", "얼마예요?", "안녕히 가세요"
+  ],
+  yo: [
+    "Bọ̀jọ̀", "Ẹ káàrọ̀", "Ẹ káàsán", "Ẹ káàlẹ́",
+    "Ẹ se", "Jọ̀wọ́", "Bẹ́ẹ̀ni", "Bẹ́ẹ̀kọ́", "Mo tọrọ gafara",
+    "Bawo ni?", "Mi ò yé mi", "Ràn mí lọ́wọ́",
+    "Níbo ni...?", "Elo ni?", "Ó dàbọ̀"
+  ],
+};
 
 const Index = () => {
   const { state, actions, languages } = useTranslationWorkspace();
@@ -240,6 +311,34 @@ const Index = () => {
                   </Badge>
                 </div>
               </div>
+
+              {/* Common Phrases Quick Access */}
+              {(commonPhrases[state.sourceLanguage] || commonPhrases[state.targetLanguage]) && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.4em] text-muted-foreground">
+                    <Zap className="h-4 w-4 text-primary" />
+                    <span>Quick Phrases</span>
+                  </div>
+                  <ScrollArea className="w-full">
+                    <div className="flex gap-2 pb-2">
+                      {(commonPhrases[state.sourceLanguage] || []).map((phrase, index) => (
+                        <Button
+                          key={index}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            actions.updateInputText(phrase);
+                            actions.translate();
+                          }}
+                          className="whitespace-nowrap rounded-full border-border/60 bg-background/80 hover:bg-primary/10 hover:border-primary/40 hover:text-primary"
+                        >
+                          {phrase}
+                        </Button>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
 
               {/* Offline Status Indicator */}
               <OfflineStatusIndicator />

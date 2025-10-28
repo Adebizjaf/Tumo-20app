@@ -369,21 +369,12 @@ const Conversations = () => {
             <div className="flex-shrink-0 w-8 h-8 bg-red-100 dark:bg-red-900/50 rounded-full flex items-center justify-center">
               <Mic className="h-4 w-4 text-red-600 dark:text-red-400" />
             </div>
-            <div className="flex-1 space-y-2">
+            <div className="flex-1 space-y-3">
               <h3 className="font-medium text-red-800 dark:text-red-200">
                 Microphone Access Required
               </h3>
-              <p className="text-sm text-red-700 dark:text-red-300">
+              <div className="text-sm text-red-700 dark:text-red-300 whitespace-pre-line">
                 {speechError}
-              </p>
-              <div className="text-sm text-red-600 dark:text-red-400 space-y-1">
-                <p className="font-medium">To fix this:</p>
-                <ul className="list-disc list-inside space-y-1 ml-2">
-                  <li>Click the 🔒 or 🎤 icon in your browser address bar</li>
-                  <li>Select "Allow" for microphone access</li>
-                  <li>Refresh the page and try again</li>
-                  <li>Make sure no other app is using your microphone</li>
-                </ul>
               </div>
               <Button
                 variant="outline"

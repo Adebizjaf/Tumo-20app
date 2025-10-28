@@ -150,38 +150,67 @@ export const useDualSpeechRecognition = ({
   // Check microphone permissions before starting
   const checkMicrophonePermissions = async (): Promise<boolean> => {
     try {
-      // First check if permissions API is available
-      if ('permissions' in navigator) {
-        const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-        console.log('Microphone permission status:', permission.state);
+      // First, check if mediaDevices is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setError('Media devices not available. Please use HTTPS or localhost.');
+        return false;
+      }
+
+      // Check if any audio input devices are available
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioInputs = devices.filter(device => device.kind === 'audioinput');
         
-        if (permission.state === 'denied') {
-          setError('Microphone access is blocked. Please enable microphone permissions in your browser settings.');
+        console.log('🎤 Available audio input devices:', audioInputs.length);
+        
+        if (audioInputs.length === 0) {
+          setError('No microphone detected on this device. Please:\n\n1. Connect a microphone or headset\n2. Check if your microphone is enabled in system settings\n3. Refresh the page after connecting a microphone');
           return false;
+        }
+      } catch (enumError) {
+        console.warn('Could not enumerate devices:', enumError);
+        // Continue anyway, getUserMedia will give us a better error
+      }
+
+      // Check permissions API if available
+      if ('permissions' in navigator) {
+        try {
+          const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+          console.log('🔐 Microphone permission status:', permission.state);
+          
+          if (permission.state === 'denied') {
+            setError('🚫 Microphone access is blocked. Please:\n\n1. Click the 🔒 lock icon in your browser address bar\n2. Find "Microphone" permissions\n3. Change to "Allow"\n4. Refresh the page');
+            return false;
+          }
+        } catch (permError) {
+          console.warn('Permissions API not available:', permError);
         }
       }
 
       // Try to access microphone to trigger permission prompt
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      console.log('Microphone access granted');
+      console.log('✅ Microphone access granted');
       
       // Stop the stream immediately as we only needed it for permission check
       stream.getTracks().forEach(track => track.stop());
       return true;
     } catch (err) {
-      console.error('Microphone access error:', err);
+      console.error('❌ Microphone access error:', err);
+      
       if (err instanceof DOMException) {
         if (err.name === 'NotAllowedError') {
-          setError('Microphone access denied. Please click the microphone icon in your browser address bar and allow access.');
+          setError('🚫 Microphone access denied. Please:\n\n1. Click the 🔒 lock icon in your browser address bar\n2. Allow microphone access\n3. Refresh the page and try again');
         } else if (err.name === 'NotFoundError') {
-          setError('No microphone found. Please connect a microphone and try again.');
+          setError('🎤 No microphone found. Please:\n\n1. Connect a microphone or headset to your device\n2. Check System Settings → Sound → Input to verify it\'s recognized\n3. Make sure the microphone is not disabled\n4. Refresh the page after connecting\n\n💡 Tip: Built-in microphones on laptops should work automatically.');
         } else if (err.name === 'NotReadableError') {
-          setError('Microphone is being used by another application. Please close other applications and try again.');
+          setError('⚠️ Microphone is busy. Please:\n\n1. Close other applications using the microphone (Zoom, Teams, etc.)\n2. Restart your browser\n3. Try again');
+        } else if (err.name === 'OverconstrainedError') {
+          setError('⚙️ Microphone configuration issue. Please try a different microphone or check system settings.');
         } else {
-          setError(`Microphone error: ${err.message}`);
+          setError(`❌ Microphone error: ${err.name}\n\n${err.message || 'Unknown error'}`);
         }
       } else {
-        setError('Failed to access microphone. Please check your device and browser settings.');
+        setError('❌ Failed to access microphone. Please check your device and browser settings.\n\nTry:\n1. Using Chrome, Edge, or Safari\n2. Granting microphone permissions\n3. Connecting a microphone device');
       }
       return false;
     }

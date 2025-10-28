@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { translateText } from "@/lib/translation-engine";
+import { translateWithStreaming } from "@/lib/streaming-translation";
 
 interface SpeechResult {
   text: string;
@@ -155,7 +155,7 @@ export const useDualSpeechRecognition = ({
       if (isFinal && transcript.trim()) {
         try {
           const targetLanguage = detectedSpeaker === 'A' ? speakerBLanguage : speakerALanguage;
-          const translationResult = await translateText({
+          const translationResult = await translateWithStreaming({
             text: transcript,
             source: 'auto',
             target: targetLanguage

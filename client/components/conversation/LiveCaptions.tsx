@@ -1,236 +1,288 @@
-import { useEffect, useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { 
+  Volume2, 
+  VolumeX, 
+  Settings, 
+  Maximize2, 
+  Minimize2,
+  Eye,
+  EyeOff
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface LiveCaption {
+interface CaptionEntry {
   id: string;
-  text: string;
-  translatedText?: string;
   speaker: 'A' | 'B';
+  originalText: string;
+  translatedText?: string;
   confidence: number;
   isFinal: boolean;
   timestamp: Date;
-  isVisible: boolean;
+  originalLanguage: string;
+  targetLanguage: string;
 }
 
 interface LiveCaptionsProps {
-  currentSpeech?: {
-    text: string;
-    translatedText?: string;
-    speaker: 'A' | 'B';
-    confidence: number;
-    isFinal: boolean;
-  };
+  captions: CaptionEntry[];
+  isActive: boolean;
   speakerALanguage: string;
   speakerBLanguage: string;
-  isEnabled: boolean;
+  currentSpeaker?: 'A' | 'B' | null;
   className?: string;
 }
 
-export const LiveCaptions = ({
-  currentSpeech,
-  speakerALanguage,
+export const LiveCaptions = ({ 
+  captions, 
+  isActive, 
+  speakerALanguage, 
   speakerBLanguage,
-  isEnabled,
-  className
+  currentSpeaker,
+  className 
 }: LiveCaptionsProps) => {
-  const [captions, setCaptions] = useState<LiveCaption[]>([]);
-  const [currentInterimCaption, setCurrentInterimCaption] = useState<LiveCaption | null>(null);
-  const captionTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(true);
+  const [showTranslation, setShowTranslation] = useState(true);
+  const [fontSize, setFontSize] = useState(16);
+  const [autoScroll, setAutoScroll] = useState(true);
+  
+  const captionsRef = useRef<HTMLDivElement>(null);
+  const latestCaptionRef = useRef<HTMLDivElement>(null);
 
-  // Process new speech input
+  // Auto-scroll to latest caption
   useEffect(() => {
-    if (!currentSpeech || !isEnabled || !currentSpeech.text.trim()) {
-      setCurrentInterimCaption(null);
-      return;
-    }
-
-    const captionId = `caption-${Date.now()}`;
-    const caption: LiveCaption = {
-      id: captionId,
-      text: currentSpeech.text,
-      translatedText: currentSpeech.translatedText,
-      speaker: currentSpeech.speaker,
-      confidence: currentSpeech.confidence,
-      isFinal: currentSpeech.isFinal,
-      timestamp: new Date(),
-      isVisible: true
-    };
-
-    if (currentSpeech.isFinal) {
-      // Add to final captions list
-      setCaptions(prev => {
-        const filtered = prev.filter(c => c.speaker !== currentSpeech.speaker || c.isFinal);
-        return [...filtered, caption].slice(-6); // Keep last 6 captions
+    if (autoScroll && latestCaptionRef.current) {
+      latestCaptionRef.current.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'nearest'
       });
-
-      // Clear interim caption
-      setCurrentInterimCaption(null);
-
-      // Auto-hide after 8 seconds
-      const timeout = setTimeout(() => {
-        setCaptions(prev => 
-          prev.map(c => 
-            c.id === captionId ? { ...c, isVisible: false } : c
-          )
-        );
-
-        // Remove completely after fade out
-        setTimeout(() => {
-          setCaptions(prev => prev.filter(c => c.id !== captionId));
-          captionTimeouts.current.delete(captionId);
-        }, 500);
-      }, 8000);
-
-      captionTimeouts.current.set(captionId, timeout);
-    } else {
-      // Update interim caption
-      setCurrentInterimCaption(caption);
     }
-  }, [currentSpeech, isEnabled]);
+  }, [captions, autoScroll]);
 
-  // Cleanup timeouts
-  useEffect(() => {
-    return () => {
-      captionTimeouts.current.forEach(timeout => clearTimeout(timeout));
-      captionTimeouts.current.clear();
-    };
-  }, []);
+  // Get current active caption (most recent non-final or latest final)
+  const activeCaption = captions.length > 0 ? captions[captions.length - 1] : null;
+  const recentCaptions = captions.slice(-10); // Show last 10 captions
 
-  const getSpeakerConfig = (speaker: 'A' | 'B') => {
+  const getSpeakerColor = (speaker: 'A' | 'B') => {
     return speaker === 'A' 
-      ? {
-          color: 'bg-blue-500',
-          borderColor: 'border-blue-200 dark:border-blue-800',
-          bgColor: 'bg-blue-50 dark:bg-blue-950/20',
-          language: speakerALanguage.toUpperCase(),
-          position: 'justify-start' // Left side
-        }
-      : {
-          color: 'bg-green-500', 
-          borderColor: 'border-green-200 dark:border-green-800',
-          bgColor: 'bg-green-50 dark:bg-green-950/20',
-          language: speakerBLanguage.toUpperCase(),
-          position: 'justify-end' // Right side
-        };
+      ? { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-300', accent: 'bg-blue-500' }
+      : { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-300', accent: 'bg-green-500' };
   };
 
-  const renderCaption = (caption: LiveCaption, isInterim: boolean = false) => {
-    const config = getSpeakerConfig(caption.speaker);
-    
-    return (
-      <div 
-        key={caption.id}
-        className={cn(
-          "flex w-full transition-all duration-500 ease-in-out",
-          config.position,
-          !caption.isVisible && "opacity-0 translate-y-2"
-        )}
-      >
-        <div 
-          className={cn(
-            "max-w-md rounded-2xl border p-4 shadow-lg backdrop-blur-sm transition-all duration-300",
-            config.borderColor,
-            config.bgColor,
-            isInterim && "animate-pulse border-dashed"
-          )}
-        >
-          {/* Speaker header */}
-          <div className="flex items-center gap-2 mb-2">
-            <div className={cn("h-3 w-3 rounded-full", config.color)} />
-            <span className="text-xs font-medium">Speaker {caption.speaker}</span>
-            <Badge variant="outline" className="text-xs h-5">
-              {config.language}
-            </Badge>
-            <div className="flex-1" />
-            {!isInterim && (
-              <Badge 
-                variant="secondary" 
-                className={cn(
-                  "text-xs h-5",
-                  caption.confidence > 0.8 ? "bg-green-100 text-green-800" :
-                  caption.confidence > 0.6 ? "bg-yellow-100 text-yellow-800" :
-                  "bg-red-100 text-red-800"
-                )}
-              >
-                {Math.round(caption.confidence * 100)}%
-              </Badge>
-            )}
-          </div>
-
-          {/* Original text */}
-          <div className="space-y-2">
-            <p className={cn(
-              "text-sm font-medium leading-relaxed",
-              isInterim && "text-muted-foreground"
-            )}>
-              {caption.text}
-            </p>
-
-            {/* Translation */}
-            {caption.translatedText && caption.translatedText !== caption.text && (
-              <div className="pt-2 border-t border-border/50">
-                <p className={cn(
-                  "text-sm italic text-muted-foreground leading-relaxed",
-                  isInterim && "opacity-70"
-                )}>
-                  {caption.translatedText}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Timestamp for final captions */}
-          {!isInterim && (
-            <div className="mt-2 pt-2 border-t border-border/30">
-              <span className="text-xs text-muted-foreground">
-                {caption.timestamp.toLocaleTimeString()}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-    );
+  const getSpeakerLanguage = (speaker: 'A' | 'B') => {
+    return speaker === 'A' ? speakerALanguage : speakerBLanguage;
   };
 
-  if (!isEnabled) {
-    return (
-      <div className={cn(
-        "flex items-center justify-center h-32 text-center text-muted-foreground",
-        className
-      )}>
-        <div>
-          <div className="text-lg font-medium mb-1">Live Captions</div>
-          <p className="text-sm">Start recording to see live captions</p>
-        </div>
-      </div>
-    );
-  }
+  const getTargetLanguage = (speaker: 'A' | 'B') => {
+    return speaker === 'A' ? speakerBLanguage : speakerALanguage;
+  };
 
   return (
-    <div className={cn(
-      "space-y-4 h-96 overflow-y-auto p-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border/30",
+    <Card className={cn(
+      "relative overflow-hidden transition-all duration-300",
+      isFullscreen ? "fixed inset-4 z-50 bg-background/95 backdrop-blur" : "",
       className
     )}>
-      {captions.length === 0 && !currentInterimCaption && (
-        <div className="flex items-center justify-center h-full text-center text-muted-foreground">
-          <div>
-            <div className="animate-pulse mb-2">
-              <div className="h-8 w-8 bg-primary/20 rounded-full mx-auto mb-2" />
+      {/* Controls Header */}
+      <div className="flex items-center justify-between p-4 border-b bg-muted/30">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className={cn(
+              "h-3 w-3 rounded-full transition-colors",
+              isActive ? "bg-red-500 animate-pulse" : "bg-gray-300"
+            )} />
+            <span className="text-sm font-medium">
+              {isActive ? "Live Captions" : "Captions Ready"}
+            </span>
+          </div>
+          
+          {currentSpeaker && (
+            <Badge variant="outline" className="animate-pulse">
+              Speaker {currentSpeaker} speaking
+            </Badge>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowOriginal(!showOriginal)}
+            className={cn(!showOriginal && "opacity-50")}
+          >
+            <Eye className="h-4 w-4 mr-1" />
+            Original
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowTranslation(!showTranslation)}
+            className={cn(!showTranslation && "opacity-50")}
+          >
+            <Eye className="h-4 w-4 mr-1" />
+            Translation
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setFontSize(prev => prev === 16 ? 20 : prev === 20 ? 24 : 16)}
+          >
+            A{fontSize > 16 && fontSize > 20 ? "+" : fontSize > 16 ? "" : "-"}
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsFullscreen(!isFullscreen)}
+          >
+            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </Button>
+        </div>
+      </div>
+
+      {/* Live Caption Area */}
+      <div 
+        ref={captionsRef}
+        className="p-4 space-y-4 h-64 overflow-y-auto"
+        style={{ fontSize: `${fontSize}px` }}
+      >
+        {!isActive && captions.length === 0 && (
+          <div className="flex items-center justify-center h-full text-center text-muted-foreground">
+            <div>
+              <Volume2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">Live captions will appear here during conversation</p>
+              <p className="text-xs mt-1">Both original speech and translations will be shown</p>
             </div>
-            <p className="text-sm">Listening for speech...</p>
+          </div>
+        )}
+
+        {recentCaptions.map((caption, index) => {
+          const colors = getSpeakerColor(caption.speaker);
+          const isLatest = index === recentCaptions.length - 1;
+          
+          return (
+            <div
+              key={caption.id}
+              ref={isLatest ? latestCaptionRef : undefined}
+              className={cn(
+                "p-3 rounded-lg border transition-all duration-300",
+                colors.bg,
+                !caption.isFinal && "animate-pulse border-dashed",
+                isLatest && currentSpeaker === caption.speaker && "ring-2 ring-offset-2",
+                isLatest && currentSpeaker === caption.speaker && caption.speaker === 'A' && "ring-blue-400",
+                isLatest && currentSpeaker === caption.speaker && caption.speaker === 'B' && "ring-green-400"
+              )}
+            >
+              {/* Speaker Header */}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className={cn("h-2 w-2 rounded-full", colors.accent)} />
+                  <span className={cn("text-xs font-medium", colors.text)}>
+                    Speaker {caption.speaker}
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    {getSpeakerLanguage(caption.speaker).toUpperCase()}
+                  </Badge>
+                  {!caption.isFinal && (
+                    <Badge variant="secondary" className="text-xs animate-pulse">
+                      Speaking...
+                    </Badge>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>{Math.round(caption.confidence * 100)}%</span>
+                  <span>{caption.timestamp.toLocaleTimeString()}</span>
+                </div>
+              </div>
+
+              {/* Original Text */}
+              {showOriginal && caption.originalText && (
+                <div className="mb-2">
+                  <p className={cn(
+                    "font-medium leading-relaxed",
+                    !caption.isFinal && "opacity-70"
+                  )}>
+                    {caption.originalText}
+                  </p>
+                </div>
+              )}
+
+              {/* Translated Text */}
+              {showTranslation && caption.translatedText && (
+                <div className="border-t border-border/50 pt-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs text-muted-foreground">Translation:</span>
+                    <Badge variant="outline" className="text-xs">
+                      {getTargetLanguage(caption.speaker).toUpperCase()}
+                    </Badge>
+                  </div>
+                  <p className={cn(
+                    "text-sm italic leading-relaxed",
+                    colors.text,
+                    !caption.isFinal && "opacity-70"
+                  )}>
+                    {caption.translatedText}
+                  </p>
+                </div>
+              )}
+
+              {/* Confidence Bar */}
+              <div className="mt-2 flex items-center gap-2">
+                <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className={cn(
+                      "h-full transition-all duration-300 rounded-full",
+                      caption.confidence > 0.8 ? "bg-green-500" : 
+                      caption.confidence > 0.6 ? "bg-yellow-500" : "bg-red-500"
+                    )}
+                    style={{ width: `${caption.confidence * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Current Speaking Indicator */}
+        {isActive && currentSpeaker && (
+          <div className={cn(
+            "p-3 rounded-lg border-2 border-dashed animate-pulse",
+            currentSpeaker === 'A' ? "border-blue-400 bg-blue-50 dark:bg-blue-950/20" : "border-green-400 bg-green-50 dark:bg-green-950/20"
+          )}>
+            <div className="flex items-center gap-2">
+              <div className={cn(
+                "h-2 w-2 rounded-full animate-pulse",
+                currentSpeaker === 'A' ? "bg-blue-500" : "bg-green-500"
+              )} />
+              <span className="text-sm font-medium">
+                Speaker {currentSpeaker} is speaking...
+              </span>
+              <Badge variant="outline" className="text-xs">
+                {getSpeakerLanguage(currentSpeaker).toUpperCase()}
+              </Badge>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Stats Footer */}
+      {captions.length > 0 && (
+        <div className="px-4 py-2 border-t bg-muted/30 text-xs text-muted-foreground">
+          <div className="flex items-center justify-between">
+            <span>{captions.length} total captions</span>
+            <span>
+              Avg. confidence: {Math.round(
+                captions.reduce((sum, c) => sum + c.confidence, 0) / captions.length * 100
+              )}%
+            </span>
           </div>
         </div>
       )}
-
-      {/* Final captions */}
-      {captions.map(caption => renderCaption(caption))}
-
-      {/* Current interim caption */}
-      {currentInterimCaption && renderCaption(currentInterimCaption, true)}
-
-      {/* Auto-scroll anchor */}
-      <div id="captions-bottom" />
-    </div>
+    </Card>
   );
 };

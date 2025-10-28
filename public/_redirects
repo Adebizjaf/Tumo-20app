@@ -1,0 +1,3 @@
+# Netlify SPA routing - redirect all requests to index.html except API calls
+/api/*  /.netlify/functions/api/:splat  200
+/*      /index.html                      200

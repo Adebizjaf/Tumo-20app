@@ -1,15 +1,19 @@
 import { Router } from "express";
 
-// Using MyMemory Translation API - Free, no API key required
-// Limit: 5000 words/day per IP (very generous for free tier)
+// Using LibreTranslate - Free, open-source, more reliable for real-time conversations
+// Public instance: https://libretranslate.com (free tier: 20 requests/minute)
+// Backup instances available for better reliability
 const TRANSLATION_API_URL =
-  process.env.TRANSLATION_API_URL ?? "https://api.mymemory.translated.net";
+  process.env.TRANSLATION_API_URL ?? "https://libretranslate.com";
 const TRANSLATION_TIMEOUT_MS = Number(
-  process.env.TRANSLATION_TIMEOUT_MS ?? 12_000,
+  process.env.TRANSLATION_TIMEOUT_MS ?? 8_000,
 );
 
-// No fallback APIs needed - MyMemory is very reliable
-const FALLBACK_APIS: string[] = [];
+// Multiple LibreTranslate instances for better reliability
+const FALLBACK_APIS: string[] = [
+  "https://translate.astian.org",
+  "https://translate.argosopentech.com",
+];
 
 const sanitizeEndpoint = (endpoint: string) => endpoint.replace(/\/$/, "");
 
@@ -17,9 +21,9 @@ const remoteEndpoint = sanitizeEndpoint(TRANSLATION_API_URL);
 
 const callRemote = async (
   path: string,
-  params: Record<string, string>,
+  body: Record<string, any>,
 ): Promise<globalThis.Response | undefined> => {
-  // MyMemory uses GET requests with query parameters, not POST
+  // LibreTranslate uses POST requests with JSON body
   const endpoints = [remoteEndpoint, ...FALLBACK_APIS];
 
   for (const endpoint of endpoints) {
@@ -30,13 +34,15 @@ const callRemote = async (
     );
 
     try {
-      // Build query string from params
-      const queryString = new URLSearchParams(params).toString();
-      const url = `${endpoint}${path}?${queryString}`;
-
-      console.log(`Trying translation API: ${url}`);
+      const url = `${endpoint}${path}`;
+      console.log(`Trying LibreTranslate API: ${url}`);
+      
       const response = await fetch(url, {
-        method: "GET",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
         signal: controller.signal,
       });
 
@@ -353,15 +359,14 @@ translationRouter.post("/translate", async (req, res) => {
     console.log(`Auto-detected source language: ${sourceLanguage}`);
   }
 
-  // MyMemory API format: /get?q=text&langpair=source|target
-  const langpair = `${sourceLanguage}|${target}`;
-  console.log(`Translation langpair: ${langpair}`);
+  // LibreTranslate API format: POST /translate with JSON body
+  console.log(`Translation: ${sourceLanguage} -> ${target}`);
 
-  const response = await callRemote("/get", {
+  const response = await callRemote("/translate", {
     q: text,
-    langpair: langpair,
-    mt: "1", // Force machine translation to avoid odd TM matches like QFontDatabase
-    de: "opensource@tumo.app", // Contact email recommended by MyMemory to improve quality/rate limiting
+    source: sourceLanguage,
+    target: target,
+    format: "text",
   });
 
   if (!response) {
@@ -371,19 +376,11 @@ translationRouter.post("/translate", async (req, res) => {
   }
 
   const { json, raw } = await parseBody<{
-    responseData?: { translatedText?: string };
-    responseStatus?: number;
-    matches?: Array<{
-      id: string;
-      segment: string;
-      translation: string;
-      quality: string;
-      reference: string;
-      match: number;
-    }>;
+    translatedText?: string;
+    error?: string;
   }>(response);
 
-  if (!response.ok || !json || !json.responseData) {
+  if (!response.ok || !json) {
     console.error("Translation response parsing failed:");
     console.error("- response.ok:", response.ok);
     console.error("- json exists:", !!json);
@@ -397,142 +394,30 @@ translationRouter.post("/translate", async (req, res) => {
     return res.status(status).json(payload);
   }
 
-  // Log full MyMemory response for debugging
-  console.log("=== MyMemory API Response ===");
-  console.log("Full JSON:", JSON.stringify(json, null, 2));
-  console.log("responseStatus:", json.responseStatus);
-  console.log("translatedText:", json.responseData.translatedText);
-  if (json.matches && json.matches.length > 0) {
-    console.log("Translation Memory matches:");
-    json.matches.forEach((match, idx) => {
-      console.log(`  Match ${idx + 1}:`, {
-        quality: match.quality,
-        match: match.match,
-        segment: match.segment,
-        translation: match.translation,
-        reference: match.reference,
-      });
-    });
+  // Check for LibreTranslate error response
+  if (json.error) {
+    console.error("LibreTranslate API error:", json.error);
+    return res.status(502).json(formatErrorPayload(502, `Translation failed: ${json.error}`));
   }
 
-  // Convert MyMemory response format to our expected format
-  let translatedText = json.responseData.translatedText || text;
-
-  // Quality filtering: MyMemory often returns low-quality TM matches even with mt=1
-  // Filter matches by quality score and prefer higher quality translations
-  if (json.matches && json.matches.length > 0) {
-    const MIN_QUALITY = 50; // Minimum acceptable quality score
-
-    // Find the best quality match
-    const qualityMatches = json.matches
-      .filter((m) => {
-        const quality =
-          typeof m.quality === "string" ? parseInt(m.quality, 10) : m.quality;
-        return !isNaN(quality) && quality >= MIN_QUALITY;
-      })
-      .sort((a, b) => {
-        const qualityA =
-          typeof a.quality === "string" ? parseInt(a.quality, 10) : a.quality;
-        const qualityB =
-          typeof b.quality === "string" ? parseInt(b.quality, 10) : b.quality;
-        return qualityB - qualityA; // Sort descending by quality
-      });
-
-    if (qualityMatches.length > 0) {
-      const bestMatch = qualityMatches[0];
-      const bestQuality =
-        typeof bestMatch.quality === "string"
-          ? parseInt(bestMatch.quality, 10)
-          : bestMatch.quality;
-      const currentQuality = json.matches[0].quality;
-      const currentQualityNum =
-        typeof currentQuality === "string"
-          ? parseInt(currentQuality, 10)
-          : currentQuality;
-
-      console.log(
-        `Quality check: current match quality=${currentQualityNum}, best available quality=${bestQuality}`,
-      );
-
-      if (bestQuality > currentQualityNum) {
-        console.log(
-          `Replacing low-quality translation with better match: "${translatedText}" -> "${bestMatch.translation}"`,
-        );
-        translatedText = bestMatch.translation;
-      }
-    } else {
-      // All matches are low quality, force pure MT by retrying with key parameter
-      console.log(
-        "All TM matches are low quality, forcing pure machine translation",
-      );
-      try {
-        const mtResponse = await callRemote("/get", {
-          q: text,
-          langpair: langpair,
-          key: "1", // Force pure MT, bypass TM completely
-          de: "opensource@tumo.app",
-        });
-
-        if (mtResponse && mtResponse.ok) {
-          const { json: mtJson } = await parseBody<{
-            responseData?: { translatedText?: string };
-          }>(mtResponse);
-          if (mtJson?.responseData?.translatedText) {
-            console.log(
-              `Using pure MT result: "${mtJson.responseData.translatedText}"`,
-            );
-            translatedText = mtJson.responseData.translatedText;
-          }
-        }
-      } catch (e) {
-        console.warn("Pure MT fallback failed", e);
-      }
-    }
+  if (!json.translatedText) {
+    console.error("No translatedText in response:", json);
+    return res.status(502).json(formatErrorPayload(502, "Invalid translation response"));
   }
 
-  // Defensive: if target is Hindi or other non-Latin script but translation contains ASCII letters,
-  // we consider it low quality (e.g., leaked technical tokens). In such case, retry once without TMs.
-  const NON_LATIN_TARGETS = new Set([
-    "hi",
-    "ar",
-    "zh",
-    "ja",
-    "ko",
-    "ru",
-    "he",
-    "th",
-  ]);
-  if (
-    NON_LATIN_TARGETS.has(target || "") &&
-    /[A-Za-z]{2,}/.test(translatedText)
-  ) {
-    try {
-      const retry = await callRemote("/get", {
-        q: text,
-        langpair: langpair,
-        mt: "1",
-        onlyprivate: "1", // avoid public TM suggestions
-        de: "opensource@tumo.app",
-      });
-      if (retry && retry.ok) {
-        const { json: retryJson } = await parseBody<{
-          responseData?: { translatedText?: string };
-        }>(retry);
-        if (retryJson?.responseData?.translatedText) {
-          translatedText = retryJson.responseData.translatedText;
-        }
-      }
-    } catch (e) {
-      console.warn("Retry translation failed", e);
-    }
-  }
+  // LibreTranslate returns clean, direct translations
+  console.log("=== LibreTranslate API Response ===");
+  console.log("Translated text:", json.translatedText);
+
+  // LibreTranslate returns clean, direct translations
+  const translatedText = json.translatedText || text;
 
   console.log("Translation response successful:", translatedText);
 
   return res.json({
     translatedText,
     detectedLanguage: sourceLanguage || source || "",
-    confidence: 0.9,
-    provider: "mymemory",
+    confidence: 0.95,
+    provider: "libretranslate",
   });
 });

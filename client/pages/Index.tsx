@@ -1,8 +1,10 @@
 import { DemoResponse } from "@shared/api";
+import { NavLink } from "react-router-dom";
 import {
   Copy,
   Download,
   Image as ImageIcon,
+  MessageCircle,
   Mic,
   MicOff,
   Repeat,
@@ -513,6 +515,24 @@ const Index = () => {
                 </p>
               </TabsContent>
             </Tabs>
+            
+            <div className="mt-6 pt-4 border-t border-border/50">
+              <Button
+                asChild
+                className="w-full bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 text-white font-medium rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <NavLink to="/conversations">
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Try Conversation Mode
+                  <Badge variant="secondary" className="ml-2 bg-white/20 text-white border-0">
+                    New
+                  </Badge>
+                </NavLink>
+              </Button>
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                Real-time bilingual conversations with live captions
+              </p>
+            </div>
           </GlassCard>
 
           <GlassCard className="p-6">

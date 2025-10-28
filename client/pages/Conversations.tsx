@@ -121,6 +121,13 @@ const Conversations = () => {
     speakerALanguage,
     speakerBLanguage,
     onSpeechResult: (result) => {
+      console.log('📝 Speech result received:', {
+        text: result.text,
+        isFinal: result.isFinal,
+        speaker: result.speaker,
+        hasTranslation: !!result.translatedText
+      });
+      
       if (result.isFinal && result.text.trim() && result.translatedText) {
         const speaker = result.speaker || 'A';
         const targetLanguage = speaker === 'A' ? speakerBLanguage : speakerALanguage;
@@ -136,6 +143,7 @@ const Conversations = () => {
           confidence: result.confidence
         };
         
+        console.log('💬 Adding to conversation:', newEntry);
         setConversation(prev => [...prev, newEntry]);
         
         // 🎵 REAL-TIME AUDIO: Speak the translation immediately
@@ -153,9 +161,20 @@ const Conversations = () => {
       }
     },
     onSpeakerChange: (speaker) => {
+      console.log('🔄 Speaker changed to:', speaker);
       setCurrentSpeaker(speaker);
     }
   });
+  
+  // Log speech recognition status changes
+  useEffect(() => {
+    console.log('🎤 Speech recognition status:', {
+      isRecording,
+      isListening,
+      hasError: !!speechError,
+      error: speechError
+    });
+  }, [isRecording, isListening, speechError]);
 
   // Mock conversation for demo
   useEffect(() => {
@@ -218,6 +237,15 @@ const Conversations = () => {
   const toggleRecording = async () => {
     if (!isRecording) {
       try {
+        // Check if speech recognition is available
+        const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          alert('❌ Speech recognition is not supported in this browser.\n\nPlease use:\n• Chrome (recommended)\n• Edge\n• Safari\n\nFirefox does not support Web Speech API.');
+          return;
+        }
+
+        console.log('✅ Speech Recognition API available');
+        
         const stream = await navigator.mediaDevices.getUserMedia({ 
           audio: {
             echoCancellation: true,
@@ -225,12 +253,28 @@ const Conversations = () => {
             sampleRate: 44100
           } 
         });
+        
+        console.log('✅ Microphone access granted');
+        console.log('🎤 Audio tracks:', stream.getAudioTracks().length);
+        
         setAudioStream(stream);
         setIsRecording(true);
-        console.log('Starting conversation recording');
+        console.log('🎬 Starting conversation recording with speech recognition');
       } catch (error) {
-        console.error('Failed to access microphone:', error);
-        alert('Failed to access microphone. Please check permissions.');
+        console.error('❌ Failed to access microphone:', error);
+        
+        let errorMessage = 'Failed to access microphone.';
+        if (error instanceof DOMException) {
+          if (error.name === 'NotAllowedError') {
+            errorMessage = '🚫 Microphone access denied.\n\nPlease:\n1. Click the 🔒 icon in your browser address bar\n2. Allow microphone access\n3. Refresh the page';
+          } else if (error.name === 'NotFoundError') {
+            errorMessage = '🎤 No microphone found.\n\nPlease:\n1. Connect a microphone\n2. Check system settings\n3. Refresh the page';
+          } else if (error.name === 'NotReadableError') {
+            errorMessage = '⚠️ Microphone is busy.\n\nPlease close other apps using the microphone and try again.';
+          }
+        }
+        
+        alert(errorMessage);
       }
     } else {
       if (audioStream) {
@@ -239,7 +283,7 @@ const Conversations = () => {
       }
       setIsRecording(false);
       setCurrentSpeaker(null);
-      console.log('Stopping conversation recording');
+      console.log('⏹️ Stopping conversation recording');
     }
   };
 

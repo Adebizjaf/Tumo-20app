@@ -6,12 +6,15 @@ import { Router } from "express";
 const TRANSLATION_API_URL =
   process.env.TRANSLATION_API_URL ?? "https://libretranslate.com";
 const TRANSLATION_TIMEOUT_MS = Number(
-  process.env.TRANSLATION_TIMEOUT_MS ?? 8_000,
+  process.env.TRANSLATION_TIMEOUT_MS ?? 10_000,
 );
 
 // Multiple LibreTranslate instances for better reliability
+// Using more stable community-hosted instances
 const FALLBACK_APIS: string[] = [
+  "https://translate.terraprint.co", // Community instance
   "https://translate.astian.org",
+  "https://libretranslate.de",
   "https://translate.argosopentech.com",
 ];
 
@@ -370,9 +373,15 @@ translationRouter.post("/translate", async (req, res) => {
   });
 
   if (!response) {
+    console.warn("⚠️ All translation API instances unavailable, client will use offline fallback");
     return res
       .status(503)
-      .json(formatErrorPayload(503, "Translation service unavailable"));
+      .json({
+        error: "Translation service temporarily unavailable",
+        message: "Using offline translation fallback",
+        status: 503,
+        useOfflineFallback: true
+      });
   }
 
   const { json, raw } = await parseBody<{

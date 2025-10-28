@@ -577,22 +577,43 @@ export const translateText = async (
         latencyMs: performance.now() - started,
       };
     } else if (response) {
-      // Log the error response for debugging
-      console.warn(`Translation API error: ${response.status} ${response.statusText}`);
+      // API returned an error - check if it's a 503 (service unavailable)
+      const status = response.status;
+      if (status === 503) {
+        console.info(`🔄 Translation API temporarily unavailable (${status}), using offline mode`);
+      } else {
+        console.warn(`⚠️ Translation API error: ${status}`);
+      }
+      
       try {
         const errorData = await response.json();
-        console.warn("Error details:", errorData);
+        if (errorData.useOfflineFallback) {
+          console.info('📦 Server recommends offline fallback');
+        }
       } catch {
         // Response wasn't JSON, ignore
       }
     }
   } catch (error) {
-    console.warn("Remote translation failed", error);
+    console.info("🔌 Using offline translation mode", error);
   }
 
   // Use fallback translation
-  console.info(`Using offline translation fallback for ${source} -> ${target}`);
+  console.info(`📴 Using offline translation: ${source} -> ${target}`);
   const fallback = fallbackTranslate(text, source, target);
+  
+  // Cache the fallback result for future use
+  if (fallback.text && fallback.text !== text) {
+    offlineCache.set(
+      text, 
+      source || 'auto', 
+      target, 
+      fallback.text, 
+      fallback.confidence, 
+      fallback.provider
+    );
+  }
+  
   return {
     ...fallback,
     latencyMs: performance.now() - started,

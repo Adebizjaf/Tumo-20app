@@ -17,7 +17,7 @@ export const WaveformVisualizer = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
   const analyzerRef = useRef<AnalyserNode>();
-  const dataArrayRef = useRef<Uint8Array | null>(null);
+  const dataArrayRef = useRef<Uint8Array>();
   const [audioLevels, setAudioLevels] = useState<number[]>([]);
 
   useEffect(() => {
@@ -39,13 +39,14 @@ export const WaveformVisualizer = ({
     
     analyzerRef.current = analyzer;
     const bufferLength = analyzer.frequencyBinCount;
-    dataArrayRef.current = new Uint8Array(new ArrayBuffer(bufferLength));
+    const dataArray = new Uint8Array(bufferLength);
+    dataArrayRef.current = dataArray;
 
     const animate = () => {
       if (!analyzerRef.current || !dataArrayRef.current) return;
       
-      const dataArray = dataArrayRef.current;
-      analyzerRef.current.getByteFrequencyData(dataArray);
+      // @ts-ignore - TypeScript compatibility issue with Web Audio API types
+      analyzerRef.current.getByteFrequencyData(dataArrayRef.current);
       
       // Calculate audio levels for visualization
       const levels = [];

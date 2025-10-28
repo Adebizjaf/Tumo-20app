@@ -3,6 +3,12 @@
   functions = "netlify/functions"
   publish = "dist/spa"
 
+[build.environment]
+  NPM_FLAGS = "--legacy-peer-deps"
+  NODE_VERSION = "22.21.0"
+  # Force npm usage instead of pnpm
+  NETLIFY_USE_NPM = "true"
+
 [functions]
   # Don't bundle these modules, use them from node_modules
   external_node_modules = ["express", "cors", "serverless-http", "dotenv"]

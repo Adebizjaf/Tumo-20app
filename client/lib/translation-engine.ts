@@ -734,23 +734,34 @@ export const startSpeechRecognition = (
     throw new Error("Speech recognition not supported in this browser. Please use Chrome, Edge, or Safari.");
   }
 
+  // Stop any active recognition first
   if (activeRecognition) {
-    activeRecognition.stop();
+    try {
+      activeRecognition.stop();
+    } catch (e) {
+      // Ignore errors when stopping
+    }
     activeRecognition = null;
   }
 
   const recognition = new RecognitionCtor();
   recognition.continuous = true;
   recognition.interimResults = true;
-  recognition.lang = languageToSpeechLocale(language) ?? "en-US";
+  
+  // Handle "auto" language by defaulting to English
+  const locale = language === "auto" ? "en-US" : (languageToSpeechLocale(language) ?? "en-US");
+  recognition.lang = locale;
+  recognition.maxAlternatives = 1;
+
+  console.log(`🎤 Starting speech recognition with locale: ${locale}`);
 
   recognition.onstart = () => {
-    console.log("Speech recognition started");
+    console.log("✅ Speech recognition started successfully");
     callbacks.onStart?.();
   };
   
   recognition.onerror = (event: any) => {
-    console.error("Speech recognition error:", event);
+    console.error("❌ Speech recognition error:", event.error, event);
     
     let errorMessage = "Speech recognition error";
     
@@ -759,22 +770,32 @@ export const startSpeechRecognition = (
       switch (event.error) {
         case "not-allowed":
         case "permission-denied":
-          errorMessage = "Microphone permission denied. Please allow microphone access in your browser settings.";
+          errorMessage = "🚫 Microphone permission denied.\n\nPlease:\n1. Click the 🔒 lock icon in your browser address bar\n2. Allow microphone access\n3. Refresh the page and try again";
           break;
         case "no-speech":
-          errorMessage = "No speech detected. Please try speaking again.";
-          break;
+          // Don't treat no-speech as critical error in continuous mode
+          console.log("⏸️ No speech detected, continuing...");
+          return; // Don't call error callback for no-speech
         case "audio-capture":
-          errorMessage = "No microphone found. Please connect a microphone and try again.";
+          errorMessage = "🎤 No microphone found.\n\nPlease:\n1. Connect a microphone or headset\n2. Check System Settings → Sound → Input\n3. Make sure the microphone is not disabled\n4. Refresh the page";
           break;
         case "network":
-          errorMessage = "Network error. Please check your internet connection.";
+          errorMessage = "🌐 Network error.\n\nSpeech recognition requires an internet connection.\nPlease check your connection and try again.";
           break;
         case "aborted":
-          errorMessage = "Speech recognition was stopped.";
+          console.log("⏹️ Speech recognition was stopped");
+          return; // Don't treat abort as error
+        case "service-not-allowed":
+          errorMessage = "🚫 Speech recognition service not allowed.\n\nPlease check browser settings and permissions.";
+          break;
+        case "bad-grammar":
+          errorMessage = "⚠️ Speech recognition configuration error.\n\nPlease refresh the page and try again.";
+          break;
+        case "language-not-supported":
+          errorMessage = `🌍 Language not supported: ${locale}.\n\nPlease try a different language.`;
           break;
         default:
-          errorMessage = `Speech recognition error: ${event.error}`;
+          errorMessage = `❌ Speech recognition error: ${event.error}`;
       }
     }
     
@@ -782,35 +803,88 @@ export const startSpeechRecognition = (
   };
   
   recognition.onend = () => {
-    console.log("Speech recognition ended");
+    console.log("⏹️ Speech recognition ended");
     callbacks.onEnd?.();
+    activeRecognition = null;
   };
   
   recognition.onresult = (event: any) => {
-    let transcript = "";
-    let isFinal = false;
-    const results: any[] = Array.from(event.results ?? []);
-    results.forEach((result) => {
-      const alternative = result[0];
-      transcript += alternative?.transcript ?? "";
-      if (result.isFinal) {
-        isFinal = true;
+    try {
+      let transcript = "";
+      let isFinal = false;
+      let confidence = 0;
+      
+      const results: any[] = Array.from(event.results ?? []);
+      
+      // Get the last result (most recent)
+      const lastResultIndex = event.resultIndex;
+      const lastResult = event.results[lastResultIndex];
+      
+      if (lastResult) {
+        const alternative = lastResult[0];
+        transcript = alternative?.transcript ?? "";
+        confidence = alternative?.confidence ?? 0;
+        isFinal = lastResult.isFinal;
+        
+        console.log(`🗣️ Speech ${isFinal ? 'FINAL' : 'interim'}: "${transcript}" (confidence: ${confidence.toFixed(2)})`);
       }
-    });
-    callbacks.onResult?.(transcript.trim(), isFinal);
+      
+      if (transcript.trim()) {
+        callbacks.onResult?.(transcript.trim(), isFinal);
+      }
+    } catch (error) {
+      console.error("Error processing speech result:", error);
+    }
   };
 
   try {
     recognition.start();
     activeRecognition = recognition;
+    console.log("🎬 Speech recognition start initiated...");
   } catch (error) {
-    console.error("Failed to start speech recognition:", error);
-    throw new Error("Failed to start microphone. Please check permissions and try again.");
+    console.error("❌ Failed to start speech recognition:", error);
+    activeRecognition = null;
+    
+    let errorMessage = "Failed to start microphone.";
+    if (error instanceof Error) {
+      if (error.message.includes("already started")) {
+        console.log("ℹ️  Speech recognition already running, restarting...");
+        // Try to stop and restart
+        setTimeout(() => {
+          try {
+            recognition.start();
+            activeRecognition = recognition;
+          } catch (retryError) {
+            console.error("Failed to restart:", retryError);
+          }
+        }, 100);
+        return {
+          stop: () => {
+            try {
+              recognition.stop();
+            } catch (e) {
+              // Ignore
+            }
+            activeRecognition = null;
+          },
+        };
+      }
+      errorMessage = error.message;
+    }
+    
+    throw new Error(`${errorMessage}\n\nPlease check microphone permissions and try again.`);
   }
 
   return {
     stop: () => {
-      recognition.stop();
+      try {
+        if (recognition && activeRecognition === recognition) {
+          recognition.stop();
+          console.log("🛑 Speech recognition stopped");
+        }
+      } catch (error) {
+        console.warn("Error stopping speech recognition:", error);
+      }
       activeRecognition = null;
     },
   };
@@ -820,8 +894,10 @@ export const stopSpeechRecognition = () => {
   if (activeRecognition) {
     try {
       activeRecognition.stop();
+      console.log("🛑 Active speech recognition stopped");
     } catch (error) {
-      // ignore
+      console.warn("Warning while stopping speech recognition:", error);
+      // Ignore errors, just clear the reference
     }
     activeRecognition = null;
   }

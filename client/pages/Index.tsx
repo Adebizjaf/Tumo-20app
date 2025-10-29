@@ -147,25 +147,25 @@ const Index = () => {
   const activeVoice = state.speech.isListening;
 
   return (
-    <div className="space-y-10">
-      <section className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="space-y-6">
-          <GlassCard className="p-8 lg:p-10">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+    <div className="w-full max-w-full space-y-8 lg:space-y-10">
+      <section className="grid gap-6 lg:gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+        <div className="space-y-6 min-w-0">
+          <GlassCard className="p-6 sm:p-8 lg:p-10">
+            <div className="flex flex-col gap-6">
               <div className="space-y-4">
                 <div className="flex items-center gap-3 text-xs uppercase tracking-[0.4em] text-muted-foreground">
                   <Sparkles className="h-4 w-4 text-primary" />
                   Tumọ Engine
                 </div>
-                <h1 className="font-display text-4xl font-semibold leading-[1.1] tracking-tight text-foreground sm:text-5xl">
+                <h1 className="font-display text-3xl font-semibold leading-[1.15] tracking-tight text-foreground sm:text-4xl xl:text-5xl">
                   Translate anything instantly, anywhere.
                 </h1>
-                <p className="max-w-2xl text-base text-muted-foreground">
+                <p className="max-w-3xl text-sm sm:text-base text-muted-foreground leading-relaxed">
                   Speak, type, or snap a photo and Tumọ streams live
                   translations with smart language detection, natural voice
                   playback, and offline resilience when you need it most.
                 </p>
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   {microcopy.map((line) => (
                     <Badge
                       key={line}
@@ -175,52 +175,6 @@ const Index = () => {
                       {line}
                     </Badge>
                   ))}
-                </div>
-              </div>
-              <div className="relative flex min-w-[220px] flex-col items-center gap-4 rounded-3xl border border-border/40 bg-gradient-to-br from-primary/10 via-background to-background p-6 text-center shadow-brand">
-                <span className="rounded-full bg-secondary/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-secondary">
-                  Live status
-                </span>
-                <p className="font-display text-3xl font-semibold text-foreground">
-                  {realtimeStatus}
-                </p>
-                <div className="h-2 w-full rounded-full bg-border/60">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-primary to-secondary transition-all duration-500"
-                    style={{
-                      width: state.isTranslating
-                        ? "82%"
-                        : showLatency && state.realtimeLatency
-                          ? `${Math.min(Math.max(state.realtimeLatency / 10, 20), 100)}%`
-                          : "22%",
-                    }}
-                  />
-                </div>
-                <div className="w-full space-y-3 rounded-2xl bg-background/80 p-4 text-left text-xs text-muted-foreground backdrop-blur">
-                  <div className="flex items-center justify-between">
-                    <span>Latency</span>
-                    <span>
-                      {state.realtimeLatency
-                        ? `${Math.round(state.realtimeLatency)}ms`
-                        : "—"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Offline cache</span>
-                    <span>{state.offlineReady ? "Enabled" : "Pending"}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Mode</span>
-                    <span className="capitalize">{state.mode}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Switch
-                    id="latency-toggle"
-                    checked={showLatency}
-                    onCheckedChange={setShowLatency}
-                  />
-                  <Label htmlFor="latency-toggle">Auto refresh stats</Label>
                 </div>
               </div>
             </div>
@@ -487,6 +441,57 @@ const Index = () => {
 
         <div className="space-y-6">
           <GlassCard className="p-6">
+            <div className="space-y-4">
+              <div className="text-center">
+                <span className="rounded-full bg-secondary/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-secondary">
+                  Live status
+                </span>
+              </div>
+              <p className="font-display text-3xl font-semibold text-foreground text-center">
+                {realtimeStatus}
+              </p>
+              <div className="h-2 w-full rounded-full bg-border/60">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-primary to-secondary transition-all duration-500"
+                  style={{
+                    width: state.isTranslating
+                      ? "82%"
+                      : showLatency && state.realtimeLatency
+                        ? `${Math.min(Math.max(state.realtimeLatency / 10, 20), 100)}%`
+                        : "22%",
+                  }}
+                />
+              </div>
+              <div className="space-y-3 rounded-2xl bg-background/80 p-4 text-xs text-muted-foreground backdrop-blur">
+                <div className="flex items-center justify-between">
+                  <span>Latency</span>
+                  <span>
+                    {state.realtimeLatency
+                      ? `${Math.round(state.realtimeLatency)}ms`
+                      : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Offline cache</span>
+                  <span>{state.offlineReady ? "Enabled" : "Pending"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Mode</span>
+                  <span className="capitalize">{state.mode}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
+                <Switch
+                  id="latency-toggle"
+                  checked={showLatency}
+                  onCheckedChange={setShowLatency}
+                />
+                <Label htmlFor="latency-toggle">Auto refresh stats</Label>
+              </div>
+            </div>
+          </GlassCard>
+
+          <GlassCard className="p-6">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-xl font-semibold">
                 Translation history
@@ -668,12 +673,12 @@ const Index = () => {
         </div>
       </section>
 
-      <section className="grid gap-6 rounded-3xl border border-border/60 bg-background/70 p-6 backdrop-blur lg:grid-cols-4">
+      <section className="grid gap-4 sm:gap-6 rounded-2xl sm:rounded-3xl border border-border/60 bg-background/70 p-4 sm:p-6 backdrop-blur lg:grid-cols-4">
         <div className="space-y-2">
           <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">
             Feature matrix
           </p>
-          <h2 className="font-display text-2xl font-semibold">
+          <h2 className="font-display text-xl sm:text-2xl font-semibold">
             Technical foundation
           </h2>
           <p className="text-sm text-muted-foreground">

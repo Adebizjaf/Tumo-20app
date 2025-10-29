@@ -100,6 +100,8 @@ export class StreamingTranslator {
     const startTime = Date.now();
     this.state.lastTranslationTime = startTime;
 
+    console.log(`🌍 ${isFinal ? 'FINAL' : 'PARTIAL'} translation: "${text.substring(0, 30)}..." (${source} → ${target})`);
+
     try {
       const request: TranslationRequest = {
         text: text.trim(),
@@ -109,6 +111,8 @@ export class StreamingTranslator {
 
       const result = await translateText(request);
       const latency = Date.now() - startTime;
+
+      console.log(`✅ Translation complete in ${latency}ms:`, result.text.substring(0, 50) + '...');
 
       // Enhanced result with timing info
       const enhancedResult = {
@@ -141,22 +145,29 @@ export class StreamingTranslator {
       }
 
     } catch (error) {
-      console.error('Streaming translation failed:', error);
-      // Fallback to basic result
-      const fallbackResult = {
-        text: text,
-        detectedLanguage: source,
-        confidence: 0.1,
-        provider: 'fallback',
-        latencyMs: Date.now() - startTime
-      };
-
-      if (isFinal) {
-        this.onFinalResult?.(fallbackResult);
-      } else {
+      console.error('❌ Streaming translation failed:', error);
+      
+      // Don't send fallback for final results - let the caller handle the error
+      // For partial results, send the original text as a placeholder
+      if (!isFinal) {
         this.onPartialResult?.({
-          ...fallbackResult,
+          text: text,
+          detectedLanguage: source,
+          confidence: 0.1,
+          provider: 'pending',
+          latencyMs: Date.now() - startTime,
           isPartial: true
+        });
+      } else {
+        // For final results, log error but don't send bad translation
+        console.error('🚫 Translation failed for final result. Original text:', text);
+        // Still send the callback so the UI knows there was an attempt
+        this.onFinalResult?.({
+          text: `[Translation unavailable: ${text}]`,
+          detectedLanguage: source,
+          confidence: 0,
+          provider: 'error',
+          latencyMs: Date.now() - startTime
         });
       }
     }

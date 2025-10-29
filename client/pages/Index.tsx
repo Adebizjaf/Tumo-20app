@@ -392,17 +392,27 @@ const Index = () => {
                             : actions.speakOutput()
                         }
                         className={cn(
-                          "h-10 rounded-full border border-border/60 px-4",
+                          "group relative h-11 w-11 rounded-full p-0",
+                          "bg-gradient-to-br from-primary/10 via-primary/5 to-transparent",
+                          "border-2 border-primary/20",
+                          "hover:border-primary/40 hover:bg-primary/15 hover:scale-110",
+                          "hover:shadow-lg hover:shadow-primary/25",
+                          "active:scale-95",
+                          "transition-all duration-300 ease-out",
                           state.speech.isSynthesizing &&
-                            "border-primary/40 bg-primary/20 text-primary",
+                            "border-primary bg-primary/20 shadow-lg shadow-primary/30 animate-pulse",
                         )}
+                        aria-label={
+                          state.speech.isSynthesizing
+                            ? "Stop speaking"
+                            : "Speak translation"
+                        }
                       >
                         {state.speech.isSynthesizing ? (
-                          <Volume2 className="h-4 w-4" />
+                          <Volume2 className="h-5 w-5 text-primary transition-all duration-200" />
                         ) : (
-                          <VolumeX className="h-4 w-4" />
+                          <VolumeX className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors duration-200" />
                         )}
-                        TTS
                       </Toggle>
                       <Badge
                         variant="outline"

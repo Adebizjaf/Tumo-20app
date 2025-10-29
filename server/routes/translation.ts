@@ -10,11 +10,11 @@ const TRANSLATION_TIMEOUT_MS = Number(
 );
 
 // Multiple LibreTranslate instances for better reliability
-// Using more stable community-hosted instances
-const FALLBACK_APIS: string[] = [
-  "https://translate.terraprint.co", // Community instance
+// LibreTranslate fallback instances + MyMemory as reliable backup
+const LIBRETRANSLATE_ENDPOINTS = [
+  "https://libretranslate.com",
+  "https://translate.terraprint.co",
   "https://translate.astian.org",
-  "https://libretranslate.de",
   "https://translate.argosopentech.com",
 ];
 
@@ -27,7 +27,7 @@ const callRemote = async (
   body: Record<string, any>,
 ): Promise<globalThis.Response | undefined> => {
   // LibreTranslate uses POST requests with JSON body
-  const endpoints = [remoteEndpoint, ...FALLBACK_APIS];
+  const endpoints = [remoteEndpoint, ...LIBRETRANSLATE_ENDPOINTS];
 
   for (const endpoint of endpoints) {
     const controller = new AbortController();
@@ -49,6 +49,15 @@ const callRemote = async (
         signal: controller.signal,
       });
 
+      // Validate response has JSON content-type (skip HTML responses)
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        console.warn(
+          `Translation API ${endpoint} returned non-JSON content-type: ${contentType}`,
+        );
+        continue; // Skip this endpoint and try next
+      }
+
       // If we get a successful response, return it
       if (response.ok) {
         console.log(`Translation successful using: ${endpoint}`);
@@ -64,6 +73,52 @@ const callRemote = async (
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  console.error("All LibreTranslate endpoints failed, trying MyMemory...");
+  
+  // MyMemory fallback - more reliable for simple translations
+  try {
+    const myMemoryUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(body.q)}&langpair=${body.source}|${body.target}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      TRANSLATION_TIMEOUT_MS,
+    );
+
+    try {
+      const response = await fetch(myMemoryUrl, {
+        signal: controller.signal,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // MyMemory returns data in different format - convert to LibreTranslate format
+        if (data.responseData && data.responseData.translatedText) {
+          console.log("✅ Translation successful using MyMemory fallback");
+          // Create a compatible response
+          return new Response(
+            JSON.stringify({
+              translatedText: data.responseData.translatedText,
+              detectedLanguage: {
+                language: body.source,
+                confidence: data.responseData.match || 1.0,
+              },
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        }
+      }
+      clearTimeout(timeout);
+    } catch (myMemoryError) {
+      clearTimeout(timeout);
+      console.warn("MyMemory API also failed:", myMemoryError);
+    }
+  } catch (error) {
+    console.warn("MyMemory fallback error:", error);
   }
 
   console.error("All translation API endpoints failed");

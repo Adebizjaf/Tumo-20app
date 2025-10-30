@@ -47,7 +47,6 @@ const Conversations = () => {
   const [speakerBLanguage, setSpeakerBLanguage] = useState('es');
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
-  const [showLiveCaptions, setShowLiveCaptions] = useState(true);
   
   const conversationRef = useRef<HTMLDivElement>(null);
 
@@ -61,7 +60,7 @@ const Conversations = () => {
     return voiceMap[langCode] || langCode;
   };
 
-  // Real-time Text-to-Speech for immediate audio feedback
+  // Real-time Text-to-Speech - ALWAYS plays audio
   const speakTranslation = async (text: string, language: string, speaker: 'A' | 'B') => {
     if (!text.trim()) return;
     
@@ -144,30 +143,53 @@ const Conversations = () => {
   const toggleRecording = async () => {
     if (!isRecording) {
       try {
+        // Check if speech recognition is available
         const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
         if (!SpeechRecognition) {
-          alert('❌ Speech recognition is not supported in this browser.\n\nPlease use Chrome, Edge, or Safari.');
+          alert('❌ Speech recognition is not supported in this browser.\n\nPlease use:\n• Chrome (recommended)\n• Edge\n• Safari\n\nFirefox does not support Web Speech API.');
           return;
         }
 
+        console.log('✅ Speech Recognition API available');
+        
         const stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: { echoCancellation: true, noiseSuppression: true } 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            sampleRate: 44100
+          } 
         });
+        
+        console.log('✅ Microphone access granted');
+        console.log('🎤 Audio tracks:', stream.getAudioTracks().length);
         
         setAudioStream(stream);
         setIsRecording(true);
+        console.log('🎬 Starting conversation recording with speech recognition');
       } catch (error) {
-        console.error('❌ Microphone access failed:', error);
-        alert('🚫 Microphone access denied.\n\nPlease allow microphone access and try again.');
+        console.error('❌ Failed to access microphone:', error);
+        
+        let errorMessage = 'Failed to access microphone.';
+        if (error instanceof DOMException) {
+          if (error.name === 'NotAllowedError') {
+            errorMessage = '🚫 Microphone access denied.\n\nPlease:\n1. Click the 🔒 icon in your browser address bar\n2. Allow microphone access\n3. Refresh the page';
+          } else if (error.name === 'NotFoundError') {
+            errorMessage = '🎤 No microphone found.\n\nPlease:\n1. Connect a microphone\n2. Check system settings\n3. Refresh the page';
+          } else if (error.name === 'NotReadableError') {
+            errorMessage = '⚠️ Microphone is busy.\n\nPlease close other apps using the microphone and try again.';
+          }
+        }
+        
+        alert(errorMessage);
       }
     } else {
       if (audioStream) {
         audioStream.getTracks().forEach(track => track.stop());
         setAudioStream(null);
       }
-      speechSynthesis.cancel();
       setIsRecording(false);
       setCurrentSpeaker(null);
+      console.log('⏹️ Stopping conversation recording');
     }
   };
 
@@ -277,7 +299,7 @@ const Conversations = () => {
         </div>
 
         {/* Live Captions */}
-        {showLiveCaptions && isRecording && (
+        {isRecording && (
           <LiveCaptions 
             captions={conversation.map(entry => ({
               id: entry.id,
@@ -421,9 +443,9 @@ const Conversations = () => {
                     <div className="max-w-md mx-auto space-y-2 text-sm text-muted-foreground bg-muted/30 rounded-xl p-6">
                       <p className="font-medium text-base mb-3">How it works:</p>
                       <p>🎤 Click the microphone to start recording</p>
-                      <p>🗣️ Speak naturally in your language</p>
+                      <p>�️ Speak naturally in your language</p>
                       <p>✨ Instant translation with automatic audio playback</p>
-                      <p>🔊 Hear translations in real-time</p>
+                      <p>� Hear translations in real-time</p>
                       <p>💬 Full conversation history saved below</p>
                     </div>
                   </div>

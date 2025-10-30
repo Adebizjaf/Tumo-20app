@@ -266,31 +266,83 @@ const Index = () => {
                 </div>
               </div>
 
-              {/* Common Phrases Quick Access */}
+              {/* Quick Phrases Section - Separate and Stylish */}
               {(commonPhrases[state.sourceLanguage] || commonPhrases[state.targetLanguage]) && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.4em] text-muted-foreground">
-                    <Zap className="h-4 w-4 text-primary" />
-                    <span>Quick Phrases</span>
-                  </div>
-                  <ScrollArea className="w-full">
-                    <div className="flex gap-2 pb-2">
-                      {(commonPhrases[state.sourceLanguage] || []).map((phrase, index) => (
-                        <Button
-                          key={index}
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            actions.updateInputText(phrase);
-                            actions.translate();
-                          }}
-                          className="whitespace-nowrap rounded-full border-border/60 bg-background/80 hover:bg-primary/10 hover:border-primary/40 hover:text-primary"
-                        >
-                          {phrase}
-                        </Button>
-                      ))}
+                <div className="relative overflow-hidden rounded-3xl border border-border/40 bg-gradient-to-br from-primary/5 via-background to-primary/5 p-6 shadow-lg backdrop-blur-sm">
+                  {/* Decorative background elements */}
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-50" />
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-50" />
+                  
+                  <div className="relative space-y-5">
+                    {/* Header */}
+                    <div className="flex items-center justify-center gap-3 pb-3 border-b border-border/30">
+                      <div className="flex items-center justify-center h-9 w-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/30">
+                        <Zap className="h-5 w-5 text-primary" />
+                      </div>
+                      <h3 className="text-lg font-semibold tracking-wide bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent">
+                        QUICK PHRASES
+                      </h3>
                     </div>
-                  </ScrollArea>
+
+                    {/* Two Language Columns */}
+                    <div className="grid gap-6 md:grid-cols-2">
+                      {/* Source Language Phrases */}
+                      {commonPhrases[state.sourceLanguage] && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+                            <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                            <span className="text-xs font-medium uppercase tracking-wider text-primary">
+                              {languages.find(l => l.code === state.sourceLanguage)?.name || state.sourceLanguage}
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            {(commonPhrases[state.sourceLanguage] || []).slice(0, 7).map((phrase, index) => (
+                              <Button
+                                key={index}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  actions.updateInputText(phrase);
+                                  actions.translate();
+                                }}
+                                className="w-full justify-start rounded-xl border-border/40 bg-background/80 px-4 py-5 text-left font-medium transition-all duration-200 hover:scale-[1.02] hover:border-primary/50 hover:bg-primary/10 hover:shadow-md hover:shadow-primary/20"
+                              >
+                                <span className="truncate">{phrase}</span>
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Target Language Phrases */}
+                      {commonPhrases[state.targetLanguage] && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+                            <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                            <span className="text-xs font-medium uppercase tracking-wider text-primary">
+                              {languages.find(l => l.code === state.targetLanguage)?.name || state.targetLanguage}
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            {(commonPhrases[state.targetLanguage] || []).slice(0, 7).map((phrase, index) => (
+                              <Button
+                                key={index}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  actions.updateInputText(phrase);
+                                  actions.translate();
+                                }}
+                                className="w-full justify-start rounded-xl border-border/40 bg-background/80 px-4 py-5 text-left font-medium transition-all duration-200 hover:scale-[1.02] hover:border-primary/50 hover:bg-primary/10 hover:shadow-md hover:shadow-primary/20"
+                              >
+                                <span className="truncate">{phrase}</span>
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 

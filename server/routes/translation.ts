@@ -44,9 +44,11 @@ const callRemote = async (
 
       if (response.ok) {
         const data = await response.json();
+        console.log('📦 MyMemory response:', JSON.stringify(data).substring(0, 200));
+        
         // MyMemory returns data in different format - convert to LibreTranslate format
         if (data.responseData && data.responseData.translatedText) {
-          console.log("✅ Translation successful using MyMemory");
+          console.log("✅ Translation successful using MyMemory:", data.responseData.translatedText);
           // Create a compatible response
           return new Response(
             JSON.stringify({

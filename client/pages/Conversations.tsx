@@ -293,35 +293,35 @@ const Conversations = () => {
         </div>
 
         {/* Language Selection Cards */}
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
           {/* Speaker A */}
-          <div className="relative overflow-hidden rounded-3xl border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 via-background to-blue-50/50 dark:from-blue-950/30 dark:via-background dark:to-blue-950/20 p-6 shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-400/10 rounded-full blur-3xl" />
-            <div className="relative space-y-4">
+          <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 via-background to-blue-50/50 dark:from-blue-950/30 dark:via-background dark:to-blue-950/20 p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+            <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:h-32 bg-blue-400/10 rounded-full blur-3xl" />
+            <div className="relative space-y-3 sm:space-y-4">
               <div className="flex items-center gap-3">
-                <div className="h-4 w-4 bg-blue-500 rounded-full animate-pulse" />
-                <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">Speaker A</span>
+                <div className="h-3 sm:h-4 w-3 sm:w-4 bg-blue-500 rounded-full animate-pulse" />
+                <span className="text-lg sm:text-2xl font-bold text-blue-600 dark:text-blue-400">Speaker A</span>
                 {currentSpeaker === 'A' && isRecording && (
-                  <Badge variant="secondary" className="ml-auto animate-pulse">
-                    <Mic className="h-3 w-3 mr-1" />
+                  <Badge variant="secondary" className="ml-auto text-xs sm:text-sm animate-pulse">
+                    <Mic className="h-2.5 sm:h-3 w-2.5 sm:w-3 mr-1" />
                     Speaking
                   </Badge>
                 )}
               </div>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                  <Languages className="h-4 w-4" />
+              <div className="space-y-1.5 sm:space-y-2">
+                <label className="flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground">
+                  <Languages className="h-3 sm:h-4 w-3 sm:w-4" />
                   Language
                 </label>
                 <Select value={speakerALanguage} onValueChange={setSpeakerALanguage} disabled={isRecording}>
-                  <SelectTrigger className="h-14 text-lg font-semibold border-blue-200 dark:border-blue-800 bg-background/80">
+                  <SelectTrigger className="h-10 sm:h-14 text-sm sm:text-lg font-semibold border-blue-200 dark:border-blue-800 bg-background/80">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {LANGUAGES.map((lang) => (
-                      <SelectItem key={lang.code} value={lang.code} className="text-lg">
-                        <span className="flex items-center gap-3">
-                          <span className="text-2xl">{lang.flag}</span>
+                      <SelectItem key={lang.code} value={lang.code} className="text-sm sm:text-lg">
+                        <span className="flex items-center gap-2 sm:gap-3">
+                          <span className="text-xl sm:text-2xl">{lang.flag}</span>
                           <span>{lang.name}</span>
                         </span>
                       </SelectItem>
@@ -333,33 +333,33 @@ const Conversations = () => {
           </div>
 
           {/* Speaker B */}
-          <div className="relative overflow-hidden rounded-3xl border-2 border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 via-background to-green-50/50 dark:from-green-950/30 dark:via-background dark:to-green-950/20 p-6 shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-green-400/10 rounded-full blur-3xl" />
-            <div className="relative space-y-4">
+          <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border-2 border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 via-background to-green-50/50 dark:from-green-950/30 dark:via-background dark:to-green-950/20 p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+            <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:h-32 bg-green-400/10 rounded-full blur-3xl" />
+            <div className="relative space-y-3 sm:space-y-4">
               <div className="flex items-center gap-3">
-                <div className="h-4 w-4 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-2xl font-bold text-green-600 dark:text-green-400">Speaker B</span>
+                <div className="h-3 sm:h-4 w-3 sm:w-4 bg-green-500 rounded-full animate-pulse" />
+                <span className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400">Speaker B</span>
                 {currentSpeaker === 'B' && isRecording && (
-                  <Badge variant="secondary" className="ml-auto animate-pulse">
-                    <Mic className="h-3 w-3 mr-1" />
+                  <Badge variant="secondary" className="ml-auto text-xs sm:text-sm animate-pulse">
+                    <Mic className="h-2.5 sm:h-3 w-2.5 sm:w-3 mr-1" />
                     Speaking
                   </Badge>
                 )}
               </div>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                  <Languages className="h-4 w-4" />
+              <div className="space-y-1.5 sm:space-y-2">
+                <label className="flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground">
+                  <Languages className="h-3 sm:h-4 w-3 sm:w-4" />
                   Language
                 </label>
                 <Select value={speakerBLanguage} onValueChange={setSpeakerBLanguage} disabled={isRecording}>
-                  <SelectTrigger className="h-14 text-lg font-semibold border-green-200 dark:border-green-800 bg-background/80">
+                  <SelectTrigger className="h-10 sm:h-14 text-sm sm:text-lg font-semibold border-green-200 dark:border-green-800 bg-background/80">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {LANGUAGES.map((lang) => (
-                      <SelectItem key={lang.code} value={lang.code} className="text-lg">
-                        <span className="flex items-center gap-3">
-                          <span className="text-2xl">{lang.flag}</span>
+                      <SelectItem key={lang.code} value={lang.code} className="text-sm sm:text-lg">
+                        <span className="flex items-center gap-2 sm:gap-3">
+                          <span className="text-xl sm:text-2xl">{lang.flag}</span>
                           <span>{lang.name}</span>
                         </span>
                       </SelectItem>
@@ -393,39 +393,39 @@ const Conversations = () => {
         )}
 
         {/* Recording Control */}
-        <div className="flex flex-col items-center gap-6 py-8">
+        <div className="flex flex-col items-center gap-4 sm:gap-6 py-6 sm:py-8">
           <Button
             size="lg"
             onClick={toggleRecording}
             className={cn(
-              "h-32 w-32 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-110",
+              "h-24 w-24 sm:h-32 sm:w-32 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95",
               isRecording 
                 ? "bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 animate-pulse" 
                 : "bg-gradient-to-br from-primary via-purple-500 to-primary hover:scale-110"
             )}
           >
             {isRecording ? (
-              <MicOff className="h-16 w-16 text-white drop-shadow-lg" />
+              <MicOff className="h-10 sm:h-16 w-10 sm:w-16 text-white drop-shadow-lg" />
             ) : (
-              <Mic className="h-16 w-16 text-white drop-shadow-lg" />
+              <Mic className="h-10 sm:h-16 w-10 sm:w-16 text-white drop-shadow-lg" />
             )}
           </Button>
           
-          <div className="text-center space-y-2">
+          <div className="text-center space-y-1 sm:space-y-2">
             {isRecording ? (
               <>
-                <p className="text-xl font-semibold text-green-600 dark:text-green-400 flex items-center justify-center gap-2">
-                  <Volume2 className="h-6 w-6 animate-pulse" />
+                <p className="text-base sm:text-xl font-semibold text-green-600 dark:text-green-400 flex items-center justify-center gap-2">
+                  <Volume2 className="h-4 sm:h-6 w-4 sm:w-6 animate-pulse" />
                   Listening for conversations...
                 </p>
-                <p className="text-muted-foreground">
+                <p className="text-xs sm:text-muted-foreground">
                   Speak naturally • Translations play automatically
                 </p>
               </>
             ) : (
               <>
-                <p className="text-xl font-semibold">Click to Start Recording</p>
-                <p className="text-muted-foreground">
+                <p className="text-base sm:text-xl font-semibold">Click to Start Recording</p>
+                <p className="text-xs sm:text-muted-foreground">
                   Press the microphone to begin real-time translation
                 </p>
               </>
@@ -433,8 +433,8 @@ const Conversations = () => {
           </div>
 
           {currentlyPlaying && (
-            <Badge variant="secondary" className="animate-pulse text-base px-4 py-2">
-              <Volume2 className="h-4 w-4 mr-2" />
+            <Badge variant="secondary" className="animate-pulse text-xs sm:text-base px-2 sm:px-4 py-1 sm:py-2">
+              <Volume2 className="h-3 sm:h-4 w-3 sm:w-4 mr-1 sm:mr-2" />
               Playing Translation Audio...
             </Badge>
           )}
@@ -467,63 +467,68 @@ const Conversations = () => {
         )}
 
         {/* Text Input Fallback */}
-        <div className="rounded-2xl border-2 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-6">
+        <div className="rounded-2xl sm:rounded-3xl border-2 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-4 sm:p-6">
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <Type className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-              <h3 className="font-semibold text-amber-800 dark:text-amber-200">Text Input Fallback</h3>
-              <p className="text-sm text-amber-700 dark:text-amber-300 ml-auto">
-                Can't use microphone? Type instead!
-              </p>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <Type className="h-5 sm:h-6 w-5 sm:w-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+              <div>
+                <h3 className="font-semibold text-sm sm:text-base text-amber-800 dark:text-amber-200">Text Input Fallback</h3>
+                <p className="text-xs sm:text-sm text-amber-700 dark:text-amber-300">
+                  Can't use microphone? Type instead!
+                </p>
+              </div>
             </div>
             
             <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium text-amber-700 dark:text-amber-300 mb-2 block">
+                <label className="text-xs sm:text-sm font-medium text-amber-700 dark:text-amber-300 mb-2 block">
                   Select Speaker
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   <Button
                     variant={selectedSpeaker === 'A' ? 'default' : 'outline'}
                     onClick={() => setSelectedSpeaker('A')}
-                    className={selectedSpeaker === 'A' ? 'bg-blue-500 hover:bg-blue-600' : ''}
+                    className={cn("text-xs sm:text-sm h-10 sm:h-auto py-2 sm:py-2", selectedSpeaker === 'A' ? 'bg-blue-500 hover:bg-blue-600' : '')}
                   >
-                    Speaker A ({LANGUAGES.find(l => l.code === speakerALanguage)?.name || speakerALanguage})
+                    <span className="hidden sm:inline">Speaker A ({LANGUAGES.find(l => l.code === speakerALanguage)?.name || speakerALanguage})</span>
+                    <span className="sm:hidden">A</span>
                   </Button>
                   <Button
                     variant={selectedSpeaker === 'B' ? 'default' : 'outline'}
                     onClick={() => setSelectedSpeaker('B')}
-                    className={selectedSpeaker === 'B' ? 'bg-green-500 hover:bg-green-600' : ''}
+                    className={cn("text-xs sm:text-sm h-10 sm:h-auto py-2 sm:py-2", selectedSpeaker === 'B' ? 'bg-green-500 hover:bg-green-600' : '')}
                   >
-                    Speaker B ({LANGUAGES.find(l => l.code === speakerBLanguage)?.name || speakerBLanguage})
+                    <span className="hidden sm:inline">Speaker B ({LANGUAGES.find(l => l.code === speakerBLanguage)?.name || speakerBLanguage})</span>
+                    <span className="sm:hidden">B</span>
                   </Button>
                 </div>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-amber-700 dark:text-amber-300 mb-2 block">
+                <label className="text-xs sm:text-sm font-medium text-amber-700 dark:text-amber-300 mb-2 block">
                   Type Message ({selectedSpeaker === 'A' ? speakerALanguage.toUpperCase() : speakerBLanguage.toUpperCase()})
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Input
                     placeholder="Enter text to translate..."
                     value={textInput}
                     onChange={(e) => setTextInput(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleManualTextTranslation()}
-                    className="flex-1 bg-white dark:bg-amber-950/50"
+                    className="flex-1 text-sm bg-white dark:bg-amber-950/50 h-10 sm:h-auto"
                   />
                   <Button
                     onClick={handleManualTextTranslation}
                     disabled={!textInput.trim()}
-                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                    className="bg-amber-600 hover:bg-amber-700 text-white text-sm h-10 sm:h-auto w-full sm:w-auto"
                   >
-                    <Send className="h-4 w-4" />
+                    <Send className="h-4 w-4 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">Send</span>
                   </Button>
                 </div>
               </div>
 
               <p className="text-xs text-amber-600 dark:text-amber-400 italic">
-                💡 Type your message above and press Enter or click Send to translate and play the audio
+                💡 Type your message and press Enter or click Send to translate and play the audio
               </p>
             </div>
           </div>

@@ -760,49 +760,52 @@ export const startSpeechRecognition = (
     callbacks.onStart?.();
   };
   
-  recognition.onerror = (event: any) => {
+    recognition.onerror = (event: any) => {
     console.error("❌ Speech recognition error:", event.error, event);
     
     let errorMessage = "Speech recognition error";
+    let shouldShowError = true;
     
     // Provide specific error messages based on error type
     if (typeof event?.error === "string") {
       switch (event.error) {
         case "not-allowed":
         case "permission-denied":
-          errorMessage = "🚫 Microphone permission denied.\n\nPlease:\n1. Click the 🔒 lock icon in your browser address bar\n2. Allow microphone access\n3. Refresh the page and try again";
+          errorMessage = "🚫 Microphone permission denied.\n\nPlease:\n1. Click the 🔒 lock icon in your browser address bar\n2. Allow microphone access\n3. Refresh the page and try again\n\n💡 Tip: Check if other apps are using your microphone.";
           break;
         case "no-speech":
           // Don't treat no-speech as critical error in continuous mode
           console.log("⏸️ No speech detected, continuing...");
+          shouldShowError = false;
           return; // Don't call error callback for no-speech
         case "audio-capture":
-          errorMessage = "🎤 No microphone found.\n\nPlease:\n1. Connect a microphone or headset\n2. Check System Settings → Sound → Input\n3. Make sure the microphone is not disabled\n4. Refresh the page";
+          errorMessage = "🎤 No microphone found.\n\nPlease:\n1. Connect a microphone or headset to your device\n2. Check System Settings → Sound → Input\n3. Make sure the microphone is not disabled or muted\n4. Refresh the page after connecting\n\n💡 Tip: Built-in laptop microphones should work automatically.\n\n🔍 Troubleshooting:\n• Close other apps that might be using the microphone\n• Try a different browser (Chrome works best)\n• Check if your microphone needs drivers or updates";
           break;
         case "network":
-          errorMessage = "🌐 Network error.\n\nSpeech recognition requires an internet connection.\nPlease check your connection and try again.";
+          errorMessage = "🌐 Network error.\n\nSpeech recognition requires an internet connection.\nPlease check your connection and try again.\n\n💡 Tip: Check if your firewall is blocking the connection.";
           break;
         case "aborted":
           console.log("⏹️ Speech recognition was stopped");
+          shouldShowError = false;
           return; // Don't treat abort as error
         case "service-not-allowed":
-          errorMessage = "🚫 Speech recognition service not allowed.\n\nPlease check browser settings and permissions.";
+          errorMessage = "🚫 Speech recognition service not allowed.\n\nPlease:\n1. Check browser settings and permissions\n2. Make sure you're using HTTPS (not HTTP)\n3. Try a different browser\n\n💡 Tip: Chrome and Edge have the best speech recognition support.";
           break;
         case "bad-grammar":
-          errorMessage = "⚠️ Speech recognition configuration error.\n\nPlease refresh the page and try again.";
+          errorMessage = "⚠️ Speech recognition configuration error.\n\nPlease refresh the page and try again.\n\nIf the problem persists, try:\n• Clearing your browser cache\n• Using a different browser";
           break;
         case "language-not-supported":
-          errorMessage = `🌍 Language not supported: ${locale}.\n\nPlease try a different language.`;
+          errorMessage = `🌍 Language not supported: ${locale}.\n\nPlease try a different language.\n\n💡 Tip: English, Spanish, French, and German have the best support.`;
           break;
         default:
-          errorMessage = `❌ Speech recognition error: ${event.error}`;
+          errorMessage = `❌ Speech recognition error: ${event.error}${event.message ? '\n\n' + event.message : ''}`;
       }
     }
     
-    callbacks.onError?.(errorMessage);
-  };
-  
-  recognition.onend = () => {
+    if (shouldShowError) {
+      callbacks.onError?.(errorMessage);
+    }
+  };  recognition.onend = () => {
     console.log("⏹️ Speech recognition ended");
     callbacks.onEnd?.();
     activeRecognition = null;

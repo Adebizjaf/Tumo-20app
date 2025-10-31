@@ -143,7 +143,19 @@ const Conversations = () => {
   const toggleRecording = async () => {
     if (!isRecording) {
       try {
-        // Check if speech recognition is available
+        // 1️⃣ Check for secure context (HTTPS requirement)
+        const isSecureContext = window.isSecureContext || location.protocol === 'https:' || location.hostname === 'localhost';
+        const protocol = location.protocol;
+        const hostname = location.hostname;
+        
+        console.log(`🔒 Secure Context Check: isSecureContext=${isSecureContext}, protocol=${protocol}, hostname=${hostname}`);
+        
+        if (!isSecureContext && hostname !== 'localhost') {
+          alert(`🚫 Speech recognition requires a secure connection (HTTPS).\n\nCurrent: ${protocol}//${hostname}\n\n✅ To fix:\n1. Make sure you're using https:// in the URL\n2. Check that SSL certificate is valid\n3. Try https://tumoo.netlify.app\n\nIf on localhost, use: http://localhost:8080`);
+          return;
+        }
+
+        // 2️⃣ Check if speech recognition is available
         const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
         if (!SpeechRecognition) {
           alert('❌ Speech recognition is not supported in this browser.\n\nPlease use:\n• Chrome (recommended)\n• Edge\n• Safari\n\nFirefox does not support Web Speech API.');

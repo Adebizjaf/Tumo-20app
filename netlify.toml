@@ -25,3 +25,21 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# HTTP to HTTPS redirect (required for Web Speech API)
+[[redirects]]
+  from = "http://*"
+  to = "https://:splat"
+  status = 301
+  force = true
+
+# Security headers for Web Speech API and microphone access
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Required for Web Speech API and microphone access
+    Permissions-Policy = "microphone=*, geolocation=*, camera=*"
+    # Allow HTTPS and localhost for speech recognition
+    Content-Security-Policy = "upgrade-insecure-requests"
+    # Ensure secure context for speech APIs
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"

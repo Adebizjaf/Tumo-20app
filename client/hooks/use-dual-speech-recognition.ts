@@ -376,25 +376,24 @@ export const useDualSpeechRecognition = ({
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       console.error('❌ Speech recognition error:', event.error, event.message);
       
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        setError('🚫 Microphone access denied. Please allow microphone permissions in your browser.');
-      } else if (event.error === 'no-speech') {
-        // Don't treat no-speech as a critical error in continuous mode
-        console.log('⏸️ No speech detected, continuing...');
-      } else if (event.error === 'aborted') {
-        console.log('⏹️ Speech recognition aborted');
-      } else if (event.error === 'audio-capture') {
-        setError('🎤 Audio capture failed. Please check your microphone connection and try again.');
-      } else if (event.error === 'network') {
-        setError('🌐 Network error. Speech recognition requires an internet connection.');
-      } else if (event.error === 'not-allowed') {
-        setError('🚫 Speech recognition not allowed. Please check browser permissions.');
-      } else if (event.error === 'service-not-allowed') {
-        setError('🚫 Speech recognition service not allowed. Please check browser settings.');
-      } else if (event.error === 'bad-grammar') {
-        setError('⚠️ Speech recognition grammar error. Please refresh and try again.');
-      } else if (event.error === 'language-not-supported') {
-        setError(`🌍 Language not supported: ${recognition.lang}. Try switching to a different language.`);
+      // Enhanced error messages with troubleshooting
+      const errorMapping: Record<string, string> = {
+        'not-allowed': `🚫 Speech recognition service not allowed. ⚠️ Common causes: 1. NOT using HTTPS or localhost • Must be: https://... OR http://localhost:... • Cannot be: http://... (insecure) 2. Browser doesn't support speech recognition • ✅ Use: Chrome, Edge, or Safari • ❌ Don't use: Firefox (not supported) 3. Browser settings blocking microphone • Open browser settings • Search for 'microphone' • Allow access for this site 4. Using private/incognito mode • Try regular browsing mode • Some features are restricted in private mode 💡 Quick Fix: • If on localhost, reload the page • If not localhost, make sure URL starts with 'https://' • Try Chrome if using another browser`,
+        'service-not-allowed': `🚫 Speech recognition service not allowed. ⚠️ Common causes: 1. NOT using HTTPS or localhost • Must be: https://... OR http://localhost:... • Cannot be: http://... (insecure) 2. Browser doesn't support speech recognition • ✅ Use: Chrome, Edge, or Safari • ❌ Don't use: Firefox (not supported) 3. Browser settings blocking microphone • Open browser settings • Search for 'microphone' • Allow access for this site 4. Using private/incognito mode • Try regular browsing mode • Some features are restricted in private mode 💡 Quick Fix: • If on localhost, reload the page • If not localhost, make sure URL starts with 'https://' • Try Chrome if using another browser`,
+        'no-speech': '⏸️ No speech detected, continuing...',
+        'aborted': '⏹️ Speech recognition aborted',
+        'audio-capture': '🎤 Audio capture failed. Please check your microphone connection, ensure it\'s not being used by another app, and try again.',
+        'network': '🌐 Network error. Speech recognition requires an internet connection.',
+        'bad-grammar': '⚠️ Speech recognition grammar error. Please refresh and try again.',
+        'language-not-supported': `🌍 Language not supported: ${recognition.lang}. Try switching to a different language.`,
+      };
+      
+      const errorMessage = errorMapping[event.error];
+      
+      if (event.error === 'no-speech' || event.error === 'aborted') {
+        console.log(errorMessage);
+      } else if (errorMessage) {
+        setError(errorMessage);
       } else {
         setError(`❌ Speech recognition error: ${event.error}${event.message ? ' - ' + event.message : ''}`);
       }

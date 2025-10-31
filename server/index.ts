@@ -7,6 +7,17 @@ import { translationRouter } from "./routes/translation";
 export function createServer() {
   const app = express();
 
+  // Security headers for Web Speech API and microphone access
+  app.use((req, res, next) => {
+    // Required for Web Speech API and microphone access
+    res.setHeader('Permissions-Policy', 'microphone=*, geolocation=*, camera=*');
+    // Allow upgrading insecure requests to HTTPS
+    res.setHeader('Content-Security-Policy', 'upgrade-insecure-requests');
+    // Enforce HTTPS (required for Web Speech API secure context)
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    next();
+  });
+
   // Middleware
   app.use(cors());
   

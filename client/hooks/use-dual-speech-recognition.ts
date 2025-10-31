@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { translateText } from "@/lib/translation-engine";
 import { StreamingTranslator, COMMON_CONVERSATION_PHRASES } from "@/lib/streaming-translation";
+import {
+  isSafari,
+  isIOSSafari,
+  requestSafariMicrophonePermission,
+  configureSafariSpeechRecognition,
+  handleSafariSpeechError,
+  checkSpeechRecognitionAvailable,
+} from "@/lib/safari-speech-compat";
 
 interface SpeechResult {
   text: string;
@@ -190,6 +198,26 @@ export const useDualSpeechRecognition = ({
   // Check microphone permissions before starting
   const checkMicrophonePermissions = async (): Promise<boolean> => {
     try {
+      // Check Safari-specific availability
+      const availability = checkSpeechRecognitionAvailable();
+      if (!availability.available) {
+        setError(`❌ Speech Recognition not available: ${availability.reason}`);
+        return false;
+      }
+
+      // For Safari, especially iOS, request microphone permission explicitly
+      if (isSafari()) {
+        try {
+          const hasPermission = await requestSafariMicrophonePermission();
+          if (!hasPermission) {
+            return false;
+          }
+        } catch (safariError) {
+          setError(safariError instanceof Error ? safariError.message : 'Failed to get microphone permission');
+          return false;
+        }
+      }
+
       // First, check if mediaDevices is available
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         setError('Media devices not available. Please use HTTPS or localhost.');
@@ -239,7 +267,12 @@ export const useDualSpeechRecognition = ({
       
       if (err instanceof DOMException) {
         if (err.name === 'NotAllowedError') {
-          setError('🚫 Microphone access denied. Please:\n\n1. Click the 🔒 lock icon in your browser address bar\n2. Allow microphone access\n3. Refresh the page and try again');
+          // For Safari, provide more specific guidance
+          if (isSafari() && isIOSSafari()) {
+            setError('🚫 Microphone access denied on iOS Safari.\n\n📱 To fix:\n1. Go to Settings → Safari\n2. Scroll down to find "Microphone" in privacy settings\n3. Change from "Ask" to "Allow"\n4. Return to this app and reload\n5. You may need to grant permission again when prompted');
+          } else {
+            setError('🚫 Microphone access denied. Please:\n\n1. Click the 🔒 lock icon in your browser address bar\n2. Allow microphone access\n3. Refresh the page and try again');
+          }
         } else if (err.name === 'NotFoundError') {
           setError('🎤 No microphone found. Please:\n\n1. Connect a microphone or headset to your device\n2. Check System Settings → Sound → Input to verify it\'s recognized\n3. Make sure the microphone is not disabled\n4. Refresh the page after connecting\n\n💡 Tip: Built-in microphones on laptops should work automatically.');
         } else if (err.name === 'NotReadableError') {
@@ -295,6 +328,12 @@ export const useDualSpeechRecognition = ({
     // The API will still recognize other languages, just optimized for this one
     recognition.lang = getLangCode(speakerALanguage) || 'en-US';
     recognition.maxAlternatives = 1;
+    
+    // Apply Safari-specific configurations
+    if (isSafari()) {
+      console.log('🔧 Applying Safari-specific configurations...');
+      configureSafariSpeechRecognition(recognition);
+    }
     
     console.log(`🎤 Speech recognition initialized with language: ${recognition.lang}`);
 
@@ -376,7 +415,19 @@ export const useDualSpeechRecognition = ({
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       console.error('❌ Speech recognition error:', event.error, event.message);
       
-      // Enhanced error messages with troubleshooting
+      // Use Safari-specific error handling if on Safari
+      if (isSafari()) {
+        const safariErrorMessage = handleSafariSpeechError(event.error);
+        
+        if (event.error === 'no-speech' || event.error === 'aborted') {
+          console.log(safariErrorMessage);
+        } else {
+          setError(safariErrorMessage);
+        }
+        return;
+      }
+      
+      // Enhanced error messages with troubleshooting for other browsers
       const errorMapping: Record<string, string> = {
         'not-allowed': `🚫 Speech recognition service not allowed. ⚠️ Common causes: 1. NOT using HTTPS or localhost • Must be: https://... OR http://localhost:... • Cannot be: http://... (insecure) 2. Browser doesn't support speech recognition • ✅ Use: Chrome, Edge, or Safari • ❌ Don't use: Firefox (not supported) 3. Browser settings blocking microphone • Open browser settings • Search for 'microphone' • Allow access for this site 4. Using private/incognito mode • Try regular browsing mode • Some features are restricted in private mode 💡 Quick Fix: • If on localhost, reload the page • If not localhost, make sure URL starts with 'https://' • Try Chrome if using another browser`,
         'service-not-allowed': `🚫 Speech recognition service not allowed. ⚠️ Common causes: 1. NOT using HTTPS or localhost • Must be: https://... OR http://localhost:... • Cannot be: http://... (insecure) 2. Browser doesn't support speech recognition • ✅ Use: Chrome, Edge, or Safari • ❌ Don't use: Firefox (not supported) 3. Browser settings blocking microphone • Open browser settings • Search for 'microphone' • Allow access for this site 4. Using private/incognito mode • Try regular browsing mode • Some features are restricted in private mode 💡 Quick Fix: • If on localhost, reload the page • If not localhost, make sure URL starts with 'https://' • Try Chrome if using another browser`,

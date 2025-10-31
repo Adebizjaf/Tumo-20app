@@ -259,19 +259,20 @@ export const useDualSpeechRecognition = ({
   useEffect(() => {
     if (!isActive) {
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          console.log('Recognition already stopped');
+        }
         setIsListening(false);
+        recognitionRef.current = null;
       }
+      setError(null); // Clear errors when stopping
       return;
     }
 
-    // Check microphone permissions first
+    // Initialize speech recognition when active
     const initializeSpeechRecognition = async () => {
-      const hasPermission = await checkMicrophonePermissions();
-      if (!hasPermission) {
-        return;
-      }
-
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       
       if (!SpeechRecognition) {

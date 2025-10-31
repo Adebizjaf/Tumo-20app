@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LiveCaptions } from "@/components/conversation/LiveCaptions";
 import { useDualSpeechRecognition } from "@/hooks/use-dual-speech-recognition";
@@ -12,7 +13,9 @@ import {
   Languages,
   MessageCircle,
   Sparkles,
-  Zap
+  Zap,
+  Type,
+  Send
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +50,10 @@ const Conversations = () => {
   const [speakerBLanguage, setSpeakerBLanguage] = useState('es');
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
+  const [speechErrorMessage, setSpeechErrorMessage] = useState<string | null>(null);
+  const [useTextInput, setUseTextInput] = useState(false);
+  const [textInput, setTextInput] = useState('');
+  const [selectedSpeaker, setSelectedSpeaker] = useState<'A' | 'B'>('A');
   
   const conversationRef = useRef<HTMLDivElement>(null);
 
@@ -202,6 +209,60 @@ const Conversations = () => {
       setIsRecording(false);
       setCurrentSpeaker(null);
       console.log('⏹️ Stopping conversation recording');
+    }
+  };
+
+  // Handle manual text translation (fallback when speech fails)
+  const handleManualTextTranslation = async () => {
+    if (!textInput.trim()) return;
+
+    try {
+      const sourceLanguage = selectedSpeaker === 'A' ? speakerALanguage : speakerBLanguage;
+      const targetLanguage = selectedSpeaker === 'A' ? speakerBLanguage : speakerALanguage;
+
+      // Translate the text
+      const response = await fetch('/api/translation/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: textInput,
+          source: sourceLanguage,
+          target: targetLanguage,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Translation failed');
+      const data = await response.json();
+
+      const newEntry: ConversationEntry = {
+        id: Date.now().toString(),
+        timestamp: new Date(),
+        speaker: selectedSpeaker,
+        originalText: textInput,
+        translatedText: data.translatedText || data.translation || textInput,
+        originalLanguage: sourceLanguage,
+        targetLanguage,
+        confidence: 1.0
+      };
+
+      setConversation(prev => [...prev, newEntry]);
+      
+      // Speak the translation
+      speakTranslation(newEntry.translatedText, targetLanguage, selectedSpeaker);
+      
+      // Clear input
+      setTextInput('');
+      
+      // Auto-scroll
+      setTimeout(() => {
+        conversationRef.current?.scrollTo({
+          top: conversationRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 100);
+    } catch (error) {
+      console.error('Manual translation failed:', error);
+      alert('❌ Translation failed. Please try again.');
     }
   };
 
@@ -404,6 +465,69 @@ const Conversations = () => {
             </div>
           </div>
         )}
+
+        {/* Text Input Fallback */}
+        <div className="rounded-2xl border-2 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-6">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Type className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              <h3 className="font-semibold text-amber-800 dark:text-amber-200">Text Input Fallback</h3>
+              <p className="text-sm text-amber-700 dark:text-amber-300 ml-auto">
+                Can't use microphone? Type instead!
+              </p>
+            </div>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-amber-700 dark:text-amber-300 mb-2 block">
+                  Select Speaker
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    variant={selectedSpeaker === 'A' ? 'default' : 'outline'}
+                    onClick={() => setSelectedSpeaker('A')}
+                    className={selectedSpeaker === 'A' ? 'bg-blue-500 hover:bg-blue-600' : ''}
+                  >
+                    Speaker A ({LANGUAGES.find(l => l.code === speakerALanguage)?.name || speakerALanguage})
+                  </Button>
+                  <Button
+                    variant={selectedSpeaker === 'B' ? 'default' : 'outline'}
+                    onClick={() => setSelectedSpeaker('B')}
+                    className={selectedSpeaker === 'B' ? 'bg-green-500 hover:bg-green-600' : ''}
+                  >
+                    Speaker B ({LANGUAGES.find(l => l.code === speakerBLanguage)?.name || speakerBLanguage})
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-amber-700 dark:text-amber-300 mb-2 block">
+                  Type Message ({selectedSpeaker === 'A' ? speakerALanguage.toUpperCase() : speakerBLanguage.toUpperCase()})
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter text to translate..."
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleManualTextTranslation()}
+                    className="flex-1 bg-white dark:bg-amber-950/50"
+                  />
+                  <Button
+                    onClick={handleManualTextTranslation}
+                    disabled={!textInput.trim()}
+                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <p className="text-xs text-amber-600 dark:text-amber-400 italic">
+                💡 Type your message above and press Enter or click Send to translate and play the audio
+              </p>
+            </div>
+          </div>
+        </div>
 
         {/* Conversation Transcript */}
         <div className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-background via-background to-primary/5 p-6 sm:p-8 shadow-lg">

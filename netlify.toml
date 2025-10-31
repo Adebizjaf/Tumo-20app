@@ -33,13 +33,13 @@
   status = 301
   force = true
 
-# Security headers for Web Speech API and microphone access
+# Security headers for Web Speech API (requires HTTPS/secure context)
 [[headers]]
   for = "/*"
   [headers.values]
-    # Required for Web Speech API and microphone access
-    Permissions-Policy = "microphone=*, geolocation=*, camera=*"
-    # Allow HTTPS and localhost for speech recognition
-    Content-Security-Policy = "upgrade-insecure-requests"
-    # Ensure secure context for speech APIs
+    # Force HTTPS connection for secure context (CRITICAL for Web Speech API)
     Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    # Allow upgrading insecure requests to HTTPS when possible
+    Content-Security-Policy = "upgrade-insecure-requests"
+    # Don't block cross-origin requests for translation APIs
+    Access-Control-Allow-Origin = "*"

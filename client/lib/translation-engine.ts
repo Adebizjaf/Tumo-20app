@@ -734,6 +734,13 @@ export const startSpeechRecognition = (
     throw new Error("Speech recognition not supported in this browser. Please use Chrome, Edge, or Safari.");
   }
 
+  // Check if running in secure context (HTTPS or localhost)
+  if (typeof window !== 'undefined' && !window.isSecureContext) {
+    const errorMsg = "🔒 Microphone requires a secure connection.\n\nYou must access this app via:\n• HTTPS (https://...)\n• localhost (http://localhost:...)\n\nHTTP connections are not allowed to access the microphone.\n\n💡 Tip: If you're testing locally, use 'localhost' instead of '127.0.0.1'";
+    callbacks.onError?.(errorMsg);
+    throw new Error(errorMsg);
+  }
+
   // Stop any active recognition first
   if (activeRecognition) {
     try {
@@ -789,7 +796,7 @@ export const startSpeechRecognition = (
           shouldShowError = false;
           return; // Don't treat abort as error
         case "service-not-allowed":
-          errorMessage = "🚫 Speech recognition service not allowed.\n\nPlease:\n1. Check browser settings and permissions\n2. Make sure you're using HTTPS (not HTTP)\n3. Try a different browser\n\n💡 Tip: Chrome and Edge have the best speech recognition support.";
+          errorMessage = "🚫 Speech recognition service not allowed.\n\n⚠️ Common causes:\n\n1. NOT using HTTPS or localhost\n   • Must be: https://... OR http://localhost:...\n   • Cannot be: http://... (insecure)\n\n2. Browser doesn't support speech recognition\n   • ✅ Use: Chrome, Edge, or Safari\n   • ❌ Don't use: Firefox (not supported)\n\n3. Browser settings blocking microphone\n   • Open browser settings\n   • Search for 'microphone'\n   • Allow access for this site\n\n4. Using private/incognito mode\n   • Try regular browsing mode\n   • Some features are restricted in private mode\n\n💡 Quick Fix:\n• If on localhost, reload the page\n• If not localhost, make sure URL starts with 'https://'\n• Try Chrome if using another browser";
           break;
         case "bad-grammar":
           errorMessage = "⚠️ Speech recognition configuration error.\n\nPlease refresh the page and try again.\n\nIf the problem persists, try:\n• Clearing your browser cache\n• Using a different browser";

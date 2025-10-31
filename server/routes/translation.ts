@@ -26,7 +26,53 @@ const callRemote = async (
   path: string,
   body: Record<string, any>,
 ): Promise<globalThis.Response | undefined> => {
-  // LibreTranslate uses POST requests with JSON body
+  // Try MyMemory FIRST - it's more reliable and has higher rate limits
+  try {
+    const myMemoryUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(body.q)}&langpair=${body.source}|${body.target}`;
+    console.log('🌐 Trying MyMemory API (primary)...');
+    
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      TRANSLATION_TIMEOUT_MS,
+    );
+
+    try {
+      const response = await fetch(myMemoryUrl, {
+        signal: controller.signal,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // MyMemory returns data in different format - convert to LibreTranslate format
+        if (data.responseData && data.responseData.translatedText) {
+          console.log("✅ Translation successful using MyMemory");
+          // Create a compatible response
+          return new Response(
+            JSON.stringify({
+              translatedText: data.responseData.translatedText,
+              detectedLanguage: {
+                language: body.source,
+                confidence: data.responseData.match || 1.0,
+              },
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        }
+      }
+      clearTimeout(timeout);
+    } catch (myMemoryError) {
+      clearTimeout(timeout);
+      console.warn("MyMemory API failed, trying LibreTranslate...");
+    }
+  } catch (error) {
+    console.warn("MyMemory fallback error, trying LibreTranslate...");
+  }
+
+  // Only try LibreTranslate if MyMemory fails
   const endpoints = [remoteEndpoint, ...LIBRETRANSLATE_ENDPOINTS];
 
   for (const endpoint of endpoints) {
@@ -60,8 +106,14 @@ const callRemote = async (
 
       // If we get a successful response, return it
       if (response.ok) {
-        console.log(`Translation successful using: ${endpoint}`);
+        console.log(`✅ Translation successful using: ${endpoint}`);
         return response;
+      }
+
+      // Skip rate-limited endpoints quickly
+      if (response.status === 429 || response.status === 403) {
+        console.warn(`${endpoint} is rate-limited (${response.status}), skipping...`);
+        continue;
       }
 
       // If we get an error response (not network error), log it and try next
@@ -80,53 +132,7 @@ const callRemote = async (
     }
   }
 
-  console.error("All LibreTranslate endpoints failed, trying MyMemory...");
-  
-  // MyMemory fallback - more reliable for simple translations
-  try {
-    const myMemoryUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(body.q)}&langpair=${body.source}|${body.target}`;
-    const controller = new AbortController();
-    const timeout = setTimeout(
-      () => controller.abort(),
-      TRANSLATION_TIMEOUT_MS,
-    );
-
-    try {
-      const response = await fetch(myMemoryUrl, {
-        signal: controller.signal,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // MyMemory returns data in different format - convert to LibreTranslate format
-        if (data.responseData && data.responseData.translatedText) {
-          console.log("✅ Translation successful using MyMemory fallback");
-          // Create a compatible response
-          return new Response(
-            JSON.stringify({
-              translatedText: data.responseData.translatedText,
-              detectedLanguage: {
-                language: body.source,
-                confidence: data.responseData.match || 1.0,
-              },
-            }),
-            {
-              status: 200,
-              headers: { "Content-Type": "application/json" },
-            },
-          );
-        }
-      }
-      clearTimeout(timeout);
-    } catch (myMemoryError) {
-      clearTimeout(timeout);
-      console.warn("MyMemory API also failed:", myMemoryError);
-    }
-  } catch (error) {
-    console.warn("MyMemory fallback error:", error);
-  }
-
-  console.error("All translation API endpoints failed");
+  console.error("❌ All translation endpoints failed");
   return undefined;
 };
 

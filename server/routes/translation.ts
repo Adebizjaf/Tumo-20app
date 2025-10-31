@@ -69,6 +69,11 @@ const callRemote = async (
         `Translation API ${endpoint} returned status: ${response.status}`,
       );
     } catch (error) {
+      // Silently ignore abort errors (user navigated away)
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Request aborted, user likely navigated away');
+        continue;
+      }
       console.warn(`Remote translation unreachable at ${endpoint}:`, error);
     } finally {
       clearTimeout(timeout);

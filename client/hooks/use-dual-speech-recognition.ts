@@ -273,12 +273,20 @@ export const useDualSpeechRecognition = ({
 
     // Initialize speech recognition when active
     const initializeSpeechRecognition = async () => {
+      console.log('🚀 Initializing speech recognition...');
+      console.log('📍 isActive:', isActive);
+      console.log('📍 Speaker A language:', speakerALanguage);
+      console.log('📍 Speaker B language:', speakerBLanguage);
+      
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       
       if (!SpeechRecognition) {
+        console.error('❌ SpeechRecognition API not available');
         setError('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
         return;
       }
+      
+      console.log('✅ SpeechRecognition API available');
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
